@@ -1,0 +1,21 @@
+app:
+  name: Network Monitoring System
+  version: 0.1.0
+
+modules:
+  devices: true
+  ports: true
+  vlans: true
+  diagrams: true
+  alerts: true
+  monitoring: true
+  metrics: true
+  dashboard: true
+  reports: true
+  notifications: false
+
+database:
+  url: postgresql+psycopg2://postgres:postgres@db:5432/networkdb
+
+redis:
+  url: redis://redis:6379/0
