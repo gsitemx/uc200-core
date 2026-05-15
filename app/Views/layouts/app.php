@@ -4,6 +4,7 @@ $sidebarModules = [
     ['label' => 'Dashboard', 'path' => '/dashboard', 'icon' => 'grid'],
     ['label' => 'Empresas', 'path' => '/companies', 'icon' => 'building', 'roles' => ['super-admin']],
     ['label' => 'Licencias', 'path' => '/licensing', 'icon' => 'license', 'roles' => ['super-admin']],
+    ['label' => 'PBX', 'path' => '/pbx', 'icon' => 'sip', 'roles' => ['super-admin', 'admin-empresa']],
     ['label' => 'Mi empresa', 'path' => '/companies/dashboard', 'icon' => 'tenant', 'roles' => ['admin-empresa']],
     ['label' => 'Usuarios', 'path' => '#', 'icon' => 'users'],
     ['label' => 'Roles', 'path' => '#', 'icon' => 'shield'],

@@ -14,6 +14,13 @@ mysql -u uc200 -p uc200_core < database/updates/2026_05_15_licensing_core.sql
 mysql -u uc200 -p uc200_core < database/seed.sql
 ```
 
+Si actualizas una instalacion existente que no tenia PBX Core:
+
+```bash
+mysql -u uc200 -p uc200_core < database/updates/2026_05_15_pbx_core.sql
+mysql -u uc200 -p uc200_core < database/seed.sql
+```
+
 `install.sql` crea solo la estructura de tablas.
 
 `seed.sql` crea los datos iniciales:

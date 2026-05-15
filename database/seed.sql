@@ -11,7 +11,9 @@ VALUES
     (UUID(), 'companies', 'Administrar empresas', 'companies.manage', 'Crear y editar empresas'),
     (UUID(), 'companies', 'Ver dashboard de empresa', 'companies.dashboard.view', 'Acceder al dashboard de empresa'),
     (UUID(), 'licensing', 'Administrar licencias', 'licensing.manage', 'Crear y editar planes, features y licencias'),
-    (UUID(), 'licensing', 'Ver licencias', 'licensing.view', 'Acceder al dashboard de licencias')
+    (UUID(), 'licensing', 'Ver licencias', 'licensing.view', 'Acceder al dashboard de licencias'),
+    (UUID(), 'pbx', 'Administrar PBX', 'pbx.manage', 'Crear y editar objetos PBX Realtime'),
+    (UUID(), 'pbx', 'Ver PBX', 'pbx.view', 'Acceder al dashboard PBX')
 ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), deleted_at = NULL;
 
 INSERT INTO roles (uuid, company_id, name, slug, description, is_system)
@@ -37,6 +39,12 @@ SELECT r.id, p.id
 FROM roles r
 CROSS JOIN permissions p
 WHERE r.slug = 'super-admin' AND p.module = 'licensing';
+
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r
+CROSS JOIN permissions p
+WHERE r.slug = 'super-admin' AND p.module = 'pbx';
 
 INSERT INTO users (uuid, company_id, name, email, password_hash, is_active)
 SELECT UUID(), NULL, 'SUPERADMIN', 'superadmin@uc200.local', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1
@@ -71,7 +79,8 @@ VALUES
     (UUID(), 'core', 'Dashboard', 'core.dashboard', 'Dashboard inicial del sistema', 1),
     (UUID(), 'core', 'Roles y permisos', 'core.rbac', 'Control de acceso basado en roles', 1),
     (UUID(), 'core', 'Modulos', 'core.modules', 'Estructura para modulos futuros', 1),
-    (UUID(), 'licensing', 'Licensing Core', 'licensing.core', 'Gestion de planes, features y licencias', 1)
+    (UUID(), 'licensing', 'Licensing Core', 'licensing.core', 'Gestion de planes, features y licencias', 1),
+    (UUID(), 'pbx', 'PBX Core', 'pbx.core', 'Base PJSIP Realtime multiempresa', 1)
 ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), deleted_at = NULL;
 
 UPDATE features f
@@ -83,6 +92,11 @@ UPDATE features f
 INNER JOIN feature_groups fg ON fg.slug = 'administracion'
 SET f.feature_group_id = fg.id
 WHERE f.module = 'licensing' AND f.feature_group_id IS NULL;
+
+UPDATE features f
+INNER JOIN feature_groups fg ON fg.slug = 'administracion'
+SET f.feature_group_id = fg.id
+WHERE f.module = 'pbx' AND f.feature_group_id IS NULL;
 
 INSERT INTO plan_features (uuid, plan_id, feature_id, feature_key, feature_value, is_enabled)
 SELECT UUID(), p.id, f.id, f.slug, '1', 1
@@ -101,6 +115,10 @@ ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), 
 
 INSERT INTO modules (uuid, name, slug, description, version, is_enabled)
 VALUES ('00000000-0000-4000-8000-000000000003', 'Licensing Core', 'licensing', 'Planes, features, limites y licencias por empresa', '0.1.0', 1)
+ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), version = VALUES(version), deleted_at = NULL;
+
+INSERT INTO modules (uuid, name, slug, description, version, is_enabled)
+VALUES ('00000000-0000-4000-8000-000000000004', 'PBX Core', 'pbx', 'Base PJSIP Realtime para extensiones SIP', '0.1.0', 1)
 ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), version = VALUES(version), deleted_at = NULL;
 
 INSERT INTO settings (uuid, company_id, setting_key, setting_value, is_public)

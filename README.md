@@ -1,6 +1,6 @@
 # UC200 Core
 
-Base inicial para un sistema PHP 8.2 + MySQL/MariaDB con MVC simple, Composer, PDO, router basico, sesiones seguras, CSRF, login preparado, roles, permisos y estructura modular.
+Base inicial para un sistema PHP 8.2 + MySQL/MariaDB con MVC simple, Composer, PDO, router basico, sesiones seguras, CSRF, login, roles, permisos, multiempresa y estructura modular.
 
 No incluye Asterisk todavia. Esta base queda lista para iniciar el MVP.
 
@@ -19,7 +19,9 @@ No incluye Asterisk todavia. Esta base queda lista para iniciar el MVP.
 composer install
 cp .env.example .env
 mysql -u root -p -e "CREATE DATABASE uc200_core CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+# Crea tablas
 mysql -u root -p uc200_core < database/install.sql
+# Crea usuario inicial, roles, permisos, plan base y modulos
 mysql -u root -p uc200_core < database/seed.sql
 composer serve
 ```
@@ -30,6 +32,8 @@ Usuario inicial:
 
 - Correo: `superadmin@uc200.local`
 - Contrasena: `password`
+
+El usuario inicial no se crea con `install.sql`; se crea al ejecutar `database/seed.sql`.
 
 Cambia esta contrasena antes de usar el sistema fuera de desarrollo.
 
@@ -64,6 +68,18 @@ $router->get('/dashboard', [DashboardController::class, 'index'], ['auth', 'role
 ```
 
 Las contrasenas deben crearse con `password_hash()`.
+
+## Companies
+
+El modulo Companies incluye CRUD de empresas, asignacion de licencia, creacion automatica de `ADMIN_EMPRESA`, settings por tenant, dashboard de empresa, middleware `tenant` y auditoria basica. Ver `docs/companies.md`.
+
+## Licensing Core
+
+El modulo Licensing Core incluye CRUD de planes, features y licencias, activacion de features por plan, limites por licencia, cache basico, expiracion automatica, middleware `feature:<slug>` y helpers `hasFeature()` / `licenseLimit()`. Ver `docs/licensing.md`.
+
+## PBX Core
+
+El modulo PBX Core prepara integracion Asterisk Realtime con PJSIP: extensiones SIP, transports, objetos `ps_endpoints`, `ps_auths`, `ps_aors`, contexto tenant, auditoria, estados SIP y estructura para presencia. No implementa llamadas ni WebRTC. Ver `docs/pbx.md`.
 
 Ejemplo para generar un hash:
 
