@@ -1,0 +1,11 @@
+; UC200 Core - PJSIP hardening notes
+; Merge these settings with /etc/asterisk/pjsip.conf.
+
+[global]
+type=global
+endpoint_identifier_order=ip,auth_username,username,anonymous
+user_agent=UC200 PBX
+
+; Keep anonymous endpoints disabled. Do not define an anonymous endpoint in production.
+; Keep auth users random and separate from visible extensions.
+; Hide service details at the network edge with firewall/rate-limit rules.

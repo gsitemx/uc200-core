@@ -15,7 +15,7 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sou
                 <span class="eyebrow">Feature</span>
                 <h3>Datos generales</h3>
             </div>
-            <button class="button primary" type="submit">Guardar</button>
+            <button class="button primary sm" type="submit"><?= e(__('actions.save')) ?></button>
         </div>
         <div class="form-grid">
             <label class="field">Nombre

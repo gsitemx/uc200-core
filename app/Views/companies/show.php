@@ -6,8 +6,8 @@
     </div>
     <div class="module-meta">
         <span class="badge <?= $company['status'] === 'active' ? 'on' : '' ?>"><?= e($company['status']) ?></span>
-        <a class="button secondary" href="/companies/dashboard?id=<?= e($company['uuid']) ?>">Dashboard</a>
-        <a class="button secondary" href="/companies/edit?id=<?= e($company['uuid']) ?>">Editar</a>
+        <a class="button secondary sm" href="/companies/dashboard?id=<?= e($company['uuid']) ?>">Dashboard</a>
+        <a class="button secondary sm" href="/companies/edit?id=<?= e($company['uuid']) ?>"><?= e(__('actions.edit')) ?></a>
     </div>
 </section>
 

@@ -1,0 +1,110 @@
+; UC200 Core - Asterisk dialplan sample
+; Copy this block into /etc/asterisk/extensions.conf or include it from there.
+;
+; Expected PBX Core naming:
+; - Visible extension: 1001
+; - Endpoint / SIP Username / AOR: tenant_{company_id}_{extension_number}
+; - Auth User: random value stored in ps_auths.username
+;
+; Example:
+; - User dials: 1002
+; - Caller endpoint: tenant_1_1001
+; - Target endpoint: tenant_1_1002
+
+[globals]
+UC200_DIAL_TIMEOUT=30
+UC200_RECORDING_ENABLED=1
+UC200_RECORD_INTERNAL=1
+UC200_RECORD_INBOUND=1
+UC200_RECORD_OUTBOUND=1
+UC200_RECORDING_BASE=/recordings
+UC200_AGI=/var/www/uc200-core/bin/asterisk/uc200_recording_agi.php
+UC200_DEFAULT_FAILOVER=Hangup
+
+[contexto_principal]
+exten => _[0-9].,1,NoOp(UC200 internal call from ${CHANNEL(endpoint)} to ${EXTEN})
+ same => n,Set(UC200_SOURCE_ENDPOINT=${CHANNEL(endpoint)})
+ same => n,Set(UC200_COMPANY_ID=${CUT(UC200_SOURCE_ENDPOINT,_,2)})
+ same => n,GotoIf($["${UC200_COMPANY_ID}" = ""]?invalid_tenant,1)
+ same => n,Set(__UC200_CALLER_EXT=${CUT(UC200_SOURCE_ENDPOINT,_,3)})
+ same => n,Set(__UC200_CALLEE_EXT=${EXTEN})
+ same => n,Set(UC200_TARGET_ENDPOINT=tenant_${UC200_COMPANY_ID}_${UC200_CALLEE_EXT})
+ same => n,Set(__UC200_DIRECTION=internal)
+ same => n,Set(__UC200_RECORDING_DIR=${UC200_RECORDING_BASE}/${UC200_COMPANY_ID}/${STRFTIME(${EPOCH},,%Y)}/${STRFTIME(${EPOCH},,%m)}/${STRFTIME(${EPOCH},,%d)})
+ same => n,Set(__UC200_RECORDING_FILE=${UC200_RECORDING_DIR}/${UNIQUEID}-${UC200_CALLER_EXT}-${UC200_CALLEE_EXT}.wav)
+ same => n,GosubIf($["${UC200_RECORDING_ENABLED}" = "1" & "${UC200_RECORD_INTERNAL}" = "1"]?uc200-recording,start,1(${UC200_COMPANY_ID},${UC200_CALLER_EXT},${UC200_CALLEE_EXT},${UC200_DIRECTION},${UC200_RECORDING_FILE},${UNIQUEID},${LINKEDID},${UC200_RECORDING_DIR}))
+ same => n,NoOp(UC200 dialing PJSIP/${UC200_TARGET_ENDPOINT})
+ same => n,Dial(PJSIP/${UC200_TARGET_ENDPOINT},${UC200_DIAL_TIMEOUT})
+ same => n,Hangup()
+
+exten => h,1,GosubIf($["${UC200_RECORDING_ENABLED}" = "1" & "${UC200_RECORD_INTERNAL}" = "1"]?uc200-recording,end,1(${UC200_COMPANY_ID},${UC200_CALLER_EXT},${UC200_CALLEE_EXT},${UC200_DIRECTION},${UC200_RECORDING_FILE},${UNIQUEID},${LINKEDID}))
+
+exten => invalid_tenant,1,NoOp(UC200 could not resolve tenant from endpoint ${CHANNEL(endpoint)})
+ same => n,Hangup(403)
+
+[uc200-recording]
+exten => start,1,NoOp(UC200 recording start ${ARG6})
+ same => n,System(/bin/mkdir -p ${ARG8})
+ same => n,MixMonitor(${ARG5},b)
+ same => n,AGI(${UC200_AGI},start,${ARG1},${ARG2},${ARG3},${ARG4},${ARG5},${ARG6},${ARG7})
+same => n,Return()
+
+; Enterprise call-flow entry points.
+; These contexts keep tenant isolation by deriving company_id from the endpoint
+; or by receiving it from the trunk/inbound edge before dispatching.
+
+[uc200-internal]
+exten => _[0-9].,1,Goto(contexto_principal,${EXTEN},1)
+
+[uc200-inbound]
+exten => _X!,1,NoOp(UC200 inbound DID ${EXTEN} from ${CALLERID(num)})
+ same => n,Set(__UC200_DIRECTION=inbound)
+ same => n,Set(__UC200_DID=${EXTEN})
+ same => n,Set(__UC200_CALLER_EXT=${CALLERID(num)})
+ same => n,GotoIf($["${UC200_COMPANY_ID}" = ""]?invalid_tenant,1)
+ same => n,NoOp(Dispatch inbound route from pbx_inbound_routes for tenant ${UC200_COMPANY_ID})
+ same => n,Gosub(uc200-dispatch-destination,extension,1(${UC200_COMPANY_ID},${UC200_DID},${UC200_DIRECTION}))
+ same => n,Hangup()
+
+exten => invalid_tenant,1,NoOp(UC200 inbound missing UC200_COMPANY_ID)
+ same => n,Hangup(403)
+
+[uc200-outbound]
+exten => _X!,1,NoOp(UC200 outbound ${EXTEN} from ${CHANNEL(endpoint)})
+ same => n,Set(UC200_SOURCE_ENDPOINT=${CHANNEL(endpoint)})
+ same => n,Set(UC200_COMPANY_ID=${CUT(UC200_SOURCE_ENDPOINT,_,2)})
+ same => n,GotoIf($["${UC200_COMPANY_ID}" = ""]?invalid_tenant,1)
+ same => n,Set(__UC200_DIRECTION=outbound)
+ same => n,Set(__UC200_CALLER_EXT=${CUT(UC200_SOURCE_ENDPOINT,_,3)})
+ same => n,Set(__UC200_CALLEE_EXT=${EXTEN})
+ same => n,NoOp(Match pbx_outbound_routes by tenant, permission and dial pattern)
+ same => n,Hangup()
+
+exten => invalid_tenant,1,NoOp(UC200 outbound missing tenant from endpoint ${CHANNEL(endpoint)})
+ same => n,Hangup(403)
+
+[uc200-dispatch-destination]
+exten => extension,1,NoOp(UC200 dispatch extension tenant=${ARG1} target=${ARG2})
+ same => n,Set(UC200_TARGET_ENDPOINT=tenant_${ARG1}_${ARG2})
+ same => n,Dial(PJSIP/${UC200_TARGET_ENDPOINT},${UC200_DIAL_TIMEOUT})
+ same => n,Return()
+
+exten => ringgroup,1,NoOp(UC200 dispatch ring group tenant=${ARG1} group=${ARG2})
+ same => n,NoOp(Resolve pbx_ring_groups.members into PJSIP targets before Dial)
+ same => n,Return()
+
+exten => ivr,1,NoOp(UC200 dispatch IVR tenant=${ARG1} ivr=${ARG2})
+ same => n,NoOp(Playback prompt_file and route digits from pbx_ivrs.options_json)
+ same => n,Return()
+
+exten => voicemail,1,NoOp(UC200 dispatch voicemail tenant=${ARG1} box=${ARG2})
+ same => n,VoiceMail(${ARG2}@default,u)
+ same => n,Return()
+
+exten => queue,1,NoOp(UC200 dispatch queue tenant=${ARG1} queue=${ARG2})
+ same => n,Queue(${ARG2})
+ same => n,Return()
+
+exten => end,1,NoOp(UC200 recording end ${ARG6})
+ same => n,AGI(${UC200_AGI},end,${ARG1},${ARG2},${ARG3},${ARG4},${ARG5},${ARG6},${ARG7})
+ same => n,Return()

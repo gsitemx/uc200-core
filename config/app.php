@@ -8,6 +8,8 @@ return [
     'debug' => filter_var(env('APP_DEBUG', false), FILTER_VALIDATE_BOOL),
     'url' => rtrim((string) env('APP_URL', 'http://127.0.0.1:8080'), '/'),
     'key' => env('APP_KEY', ''),
+    'locale' => env('APP_LOCALE', 'es'),
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
     'database' => [
         'host' => env('DB_HOST', '127.0.0.1'),

@@ -1,0 +1,4 @@
+; UC200 Core - Asterisk modules sample
+; Keep Asterisk in the RTP path for MVP internal calls and NAT-heavy clients.
+[modules]
+noload => bridge_native_rtp.so

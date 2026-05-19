@@ -4,11 +4,26 @@
 
 <section class="hero-panel">
     <div>
-        <span class="eyebrow">Bienvenido</span>
+        <span class="eyebrow"><?= e(__('app.system')) ?></span>
         <h2><?= e($user['name'] ?? 'SUPERADMIN') ?></h2>
-        <p>Este dashboard queda como punto inicial para operar el core, activar modulos y conectar futuras funciones del MVP.</p>
+        <p>Vista operativa compacta para monitorear tenants, modulos, licencias y PBX desde un solo punto.</p>
     </div>
     <div class="status-pill"><?= e(has_role('super-admin') ? 'SUPERADMIN' : ($user['company_name'] ?? 'EMPRESA')) ?></div>
+</section>
+
+<section class="quick-panel">
+    <div>
+        <span class="eyebrow">Quick actions</span>
+        <strong>Operaciones frecuentes</strong>
+    </div>
+    <div class="quick-panel-actions">
+        <?php foreach ($quickActions as $action): ?>
+            <?php if (! empty($action['roles']) && count(array_intersect($action['roles'], $user['roles'] ?? [])) === 0): ?>
+                <?php continue; ?>
+            <?php endif; ?>
+            <a class="button secondary xs" href="<?= e($action['href']) ?>"><?= e($action['label']) ?></a>
+        <?php endforeach; ?>
+    </div>
 </section>
 
 <section class="card-grid">
@@ -24,7 +39,7 @@
 <section class="module-panel">
     <div class="section-heading">
         <div>
-            <span class="eyebrow">Modulos</span>
+            <span class="eyebrow"><?= e(__('menu.modules')) ?></span>
             <h3>Estructura preparada</h3>
         </div>
         <span class="muted"><?= count($modules) ?> registrados</span>

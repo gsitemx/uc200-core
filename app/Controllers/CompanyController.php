@@ -16,7 +16,7 @@ final class CompanyController extends Controller
     public function index(Request $request): string
     {
         return view('companies/index', [
-            'title' => 'Empresas',
+            'title' => __('modules.companies'),
             'companies' => $this->companies(),
             'flash' => Session::flash('success'),
         ]);
@@ -25,7 +25,7 @@ final class CompanyController extends Controller
     public function create(Request $request): string
     {
         return view('companies/form', [
-            'title' => 'Nueva empresa',
+            'title' => __('actions.create') . ' ' . strtolower(__('fields.company')),
             'company' => [],
             'plans' => $this->plans(),
             'errors' => Session::flash('errors') ?? [],
@@ -102,7 +102,7 @@ final class CompanyController extends Controller
         $company['settings'] = $this->companySettings((int) $company['id']);
 
         return view('companies/form', [
-            'title' => 'Editar empresa',
+            'title' => __('actions.edit') . ' ' . strtolower(__('fields.company')),
             'company' => $company,
             'plans' => $this->plans(),
             'errors' => Session::flash('errors') ?? [],
@@ -130,7 +130,7 @@ final class CompanyController extends Controller
 
         $statement = $db->prepare(
             'UPDATE companies
-             SET name = :name, legal_name = :legal_name, tax_id = :tax_id, status = :status
+             SET name = :name, legal_name = :legal_name, tax_id = :tax_id, status = :status, locale = :locale
              WHERE id = :id'
         );
         $statement->execute([
@@ -139,6 +139,7 @@ final class CompanyController extends Controller
             'legal_name' => $data['legal_name'] !== '' ? $data['legal_name'] : null,
             'tax_id' => $data['tax_id'] !== '' ? $data['tax_id'] : null,
             'status' => $data['status'],
+            'locale' => $data['locale'],
         ]);
 
         $this->saveLicense($db, (int) $company['id'], $data);
@@ -240,6 +241,7 @@ final class CompanyController extends Controller
             'legal_name' => trim((string) $request->input('legal_name')),
             'tax_id' => strtoupper(trim((string) $request->input('tax_id'))),
             'status' => (string) $request->input('status', 'active'),
+            'locale' => $this->locale((string) $request->input('locale', 'es')),
             'plan_id' => (int) $request->input('plan_id', 0),
             'expires_at' => trim((string) $request->input('expires_at')),
             'contact_email' => strtolower(trim((string) $request->input('contact_email'))),
@@ -257,6 +259,10 @@ final class CompanyController extends Controller
 
         if (! in_array($data['status'], ['active', 'inactive', 'suspended'], true)) {
             $errors['status'] = 'El estado no es valido.';
+        }
+
+        if (! in_array($data['locale'], ['es', 'en'], true)) {
+            $errors['locale'] = 'El idioma no es valido.';
         }
 
         if ($data['contact_email'] !== '' && filter_var($data['contact_email'], FILTER_VALIDATE_EMAIL) === false) {
@@ -283,8 +289,8 @@ final class CompanyController extends Controller
     private function insertCompany(PDO $db, array $data): int
     {
         $statement = $db->prepare(
-            'INSERT INTO companies (uuid, name, legal_name, tax_id, status)
-             VALUES (:uuid, :name, :legal_name, :tax_id, :status)'
+            'INSERT INTO companies (uuid, name, legal_name, tax_id, status, locale)
+             VALUES (:uuid, :name, :legal_name, :tax_id, :status, :locale)'
         );
         $statement->execute([
             'uuid' => uuid(),
@@ -292,6 +298,7 @@ final class CompanyController extends Controller
             'legal_name' => $data['legal_name'] !== '' ? $data['legal_name'] : null,
             'tax_id' => $data['tax_id'] !== '' ? $data['tax_id'] : null,
             'status' => $data['status'],
+            'locale' => $data['locale'],
         ]);
 
         return (int) $db->lastInsertId();
@@ -300,8 +307,8 @@ final class CompanyController extends Controller
     private function insertCompanyAdmin(PDO $db, int $companyId, array $data): int
     {
         $statement = $db->prepare(
-            'INSERT INTO users (uuid, company_id, name, email, password_hash, is_active)
-             VALUES (:uuid, :company_id, :name, :email, :password_hash, 1)'
+            'INSERT INTO users (uuid, company_id, name, email, password_hash, is_active, locale)
+             VALUES (:uuid, :company_id, :name, :email, :password_hash, 1, :locale)'
         );
         $statement->execute([
             'uuid' => uuid(),
@@ -309,6 +316,7 @@ final class CompanyController extends Controller
             'name' => $data['admin_name'],
             'email' => $data['admin_email'],
             'password_hash' => password_hash($data['admin_password'], PASSWORD_DEFAULT),
+            'locale' => $data['locale'],
         ]);
 
         return (int) $db->lastInsertId();
@@ -482,5 +490,12 @@ final class CompanyController extends Controller
         Session::flash('errors', $errors);
         Session::flash('old', $old);
         redirect($path);
+    }
+
+    private function locale(string $locale): string
+    {
+        $locale = strtolower(substr($locale, 0, 2));
+
+        return in_array($locale, ['es', 'en'], true) ? $locale : 'es';
     }
 }

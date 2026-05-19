@@ -1,6 +1,6 @@
 <section class="auth-card">
-    <span class="eyebrow">Acceso seguro</span>
-    <h2>Iniciar sesion</h2>
+    <span class="eyebrow"><?= e(__('auth.secure_access')) ?></span>
+    <h2><?= e(__('auth.login')) ?></h2>
 
     <?php if (! empty($error)): ?>
         <div class="alert error"><?= e($error) ?></div>
@@ -9,15 +9,15 @@
     <form method="post" action="/login" class="form-stack">
         <?= csrf_field() ?>
         <div class="field">
-            <label for="email">Correo</label>
-            <input id="email" name="email" type="email" autocomplete="email" placeholder="superadmin@uc200.local" required autofocus>
+            <label for="identifier"><?= e(__('auth.identifier')) ?></label>
+            <input id="identifier" name="identifier" type="text" autocomplete="username" placeholder="Email o extension" required autofocus>
         </div>
         <div class="field">
-            <label for="password">Contrasena</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Tu contrasena" required>
+            <label for="password"><?= e(__('auth.password')) ?></label>
+            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="<?= e(__('auth.password_placeholder')) ?>" required>
         </div>
-        <button class="button primary full" type="submit">Entrar</button>
+        <button class="button primary full" type="submit"><?= e(__('auth.submit')) ?></button>
     </form>
 
-    <p class="muted">Usuario inicial: <strong>superadmin@uc200.local</strong> / <strong>password</strong></p>
+    <p class="muted"><?= e(__('auth.initial_user')) ?>: <strong>superadmin@uc200.local</strong> / <strong>password</strong></p>
 </section>

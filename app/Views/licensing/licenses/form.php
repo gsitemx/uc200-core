@@ -16,7 +16,7 @@ $limit = static fn (string $key): string => (string) ($limits[$key] ?? 0);
                 <span class="eyebrow">Licencia</span>
                 <h3>Asignacion</h3>
             </div>
-            <button class="button primary" type="submit">Guardar</button>
+            <button class="button primary sm" type="submit"><?= e(__('actions.save')) ?></button>
         </div>
         <div class="form-grid">
             <label class="field">Empresa

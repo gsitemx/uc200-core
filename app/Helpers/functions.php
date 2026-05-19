@@ -56,6 +56,31 @@ if (! function_exists('csrf_field')) {
     }
 }
 
+if (! function_exists('__')) {
+    function __(string $key, array $replace = [], ?string $locale = null): string
+    {
+        return \App\Core\I18n::translate($key, $replace, $locale);
+    }
+}
+
+if (! function_exists('lang')) {
+    function lang(?string $key = null, array $replace = [], ?string $locale = null): string
+    {
+        if ($key === null || $key === '') {
+            return \App\Core\I18n::locale();
+        }
+
+        return \App\Core\I18n::translate($key, $replace, $locale);
+    }
+}
+
+if (! function_exists('app_locale')) {
+    function app_locale(): string
+    {
+        return \App\Core\I18n::locale();
+    }
+}
+
 if (! function_exists('uuid')) {
     function uuid(): string
     {
@@ -76,8 +101,10 @@ if (! function_exists('auth_user')) {
             'company_uuid' => \App\Core\Session::get('company_uuid'),
             'company_name' => \App\Core\Session::get('company_name'),
             'company_status' => \App\Core\Session::get('company_status'),
+            'company_locale' => \App\Core\Session::get('company_locale'),
             'name' => \App\Core\Session::get('user_name'),
             'email' => \App\Core\Session::get('user_email'),
+            'locale' => \App\Core\Session::get('user_locale'),
             'roles' => \App\Core\Session::get('user_roles', []),
         ];
     }
@@ -97,6 +124,7 @@ if (! function_exists('currentCompany')) {
             'uuid' => \App\Core\Session::get('company_uuid'),
             'name' => \App\Core\Session::get('company_name'),
             'status' => \App\Core\Session::get('company_status'),
+            'locale' => \App\Core\Session::get('company_locale'),
         ];
     }
 }

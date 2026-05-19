@@ -5,13 +5,13 @@
 <section class="hero-panel">
     <div>
         <span class="eyebrow">Licensing Core</span>
-        <h2>Licencias y capacidades</h2>
-        <p>Administra planes, features, limites y licencias activas para cada empresa.</p>
+        <h2><?= e(__('licensing.title')) ?></h2>
+        <p><?= e(__('licensing.copy')) ?></p>
     </div>
     <div class="module-meta">
-        <a class="button secondary" href="/licensing/plans">Planes</a>
-        <a class="button secondary" href="/licensing/features">Features</a>
-        <a class="button primary" href="/licensing/licenses/create">Nueva licencia</a>
+        <a class="button secondary sm" href="/licensing/plans"><?= e(__('licensing.plans')) ?></a>
+        <a class="button secondary sm" href="/licensing/features"><?= e(__('licensing.features')) ?></a>
+        <a class="button primary sm" href="/licensing/licenses/create"><?= e(__('licensing.new_license')) ?></a>
     </div>
 </section>
 
@@ -29,9 +29,9 @@
     <div class="section-heading">
         <div>
             <span class="eyebrow">Recientes</span>
-            <h3>Licencias</h3>
+            <h3><?= e(__('licensing.licenses')) ?></h3>
         </div>
-        <a class="button secondary" href="/licensing/licenses">Ver todas</a>
+        <a class="button secondary sm" href="/licensing/licenses"><?= e(__('actions.view_all')) ?></a>
     </div>
     <div class="table-wrap">
         <table>

@@ -17,21 +17,21 @@ final class DashboardController extends Controller
         $isSuperAdmin = in_array('super-admin', $user['roles'] ?? [], true);
 
         return view('dashboard/index', [
-            'title' => 'Dashboard',
+            'title' => __('nav.dashboard'),
             'user' => $user,
             'cards' => [
                 [
-                    'label' => 'Empresas',
+                    'label' => __('modules.companies'),
                     'value' => $isSuperAdmin ? $this->count($db, 'companies') : 1,
                     'hint' => $isSuperAdmin ? 'Clientes registrados' : 'Tenant activo',
                 ],
                 [
-                    'label' => 'Usuarios',
+                    'label' => __('menu.users'),
                     'value' => $isSuperAdmin ? $this->count($db, 'users') : $this->countUsersByCompany($db, (int) $user['company_id']),
                     'hint' => 'Cuentas activas e historicas',
                 ],
                 [
-                    'label' => 'Modulos',
+                    'label' => __('menu.modules'),
                     'value' => $this->count($db, 'modules'),
                     'hint' => 'Base preparada para expansion',
                 ],
@@ -40,6 +40,13 @@ final class DashboardController extends Controller
                     'value' => $this->count($db, 'features'),
                     'hint' => 'Capacidades configurables',
                 ],
+            ],
+            'quickActions' => [
+                ['label' => __('companies.new'), 'href' => '/companies/create', 'roles' => ['super-admin']],
+                ['label' => __('licensing.new_license'), 'href' => '/licensing/licenses/create', 'roles' => ['super-admin']],
+                ['label' => __('actions.new_extension'), 'href' => '/pbx/extensions/create', 'roles' => ['super-admin', 'admin-empresa']],
+                ['label' => __('menu.recordings'), 'href' => '/pbx/recordings', 'roles' => ['super-admin', 'admin-empresa']],
+                ['label' => 'Nuevo telefono', 'href' => '/provisioning/devices/create', 'roles' => ['super-admin', 'admin-empresa']],
             ],
             'modules' => $this->modules($db),
             'flash' => Session::flash('success'),

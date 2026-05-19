@@ -1,0 +1,285 @@
+openapi: 3.0.3
+info:
+  title: UC200 Core API
+  version: 1.0.0
+  description: API REST enterprise para UC200 Core.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: PAT
+  schemas:
+    StandardSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+        meta:
+          type: object
+    StandardError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+paths:
+  /auth/token:
+    post:
+      security: []
+      summary: Create personal access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                name:
+                  type: string
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                expires_in_days:
+                  type: integer
+                allowed_ips:
+                  type: string
+      responses:
+        "201":
+          description: Token created
+        "401":
+          description: Invalid credentials
+    delete:
+      summary: Revoke current bearer token
+      responses:
+        "200":
+          description: Revoked
+  /auth/me:
+    get:
+      summary: Current API token context
+      responses:
+        "200":
+          description: Current user, company and scopes
+  /auth/revoke:
+    post:
+      summary: Revoke current or selected token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: Token UUID. Defaults to current token.
+      responses:
+        "200":
+          description: Revoked
+  /companies:
+    get:
+      summary: List companies
+      parameters:
+        - $ref: "#/paths/~1extensions/get/parameters/0"
+        - $ref: "#/paths/~1extensions/get/parameters/1"
+        - $ref: "#/paths/~1extensions/get/parameters/2"
+        - $ref: "#/paths/~1extensions/get/parameters/3"
+      responses:
+        "200":
+          description: Standard paginated response
+  /users:
+    get:
+      summary: List users
+      responses:
+        "200":
+          description: Standard paginated response
+  /extensions:
+    get:
+      summary: List PBX extensions
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 25
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        "200":
+          description: Standard paginated response
+  /ringgroups:
+    get:
+      summary: List ring groups
+      responses:
+        "200":
+          description: Standard paginated response
+  /ivr:
+    get:
+      summary: List IVRs
+      responses:
+        "200":
+          description: Standard paginated response
+  /trunks:
+    get:
+      summary: List SIP trunks
+      responses:
+        "200":
+          description: Standard paginated response
+  /recordings:
+    get:
+      summary: List call recordings metadata
+      responses:
+        "200":
+          description: Standard paginated response
+  /provisioning/devices:
+    get:
+      summary: List provisioning devices
+      responses:
+        "200":
+          description: Standard paginated response
+  /provisioning/templates:
+    get:
+      summary: List provisioning templates
+      responses:
+        "200":
+          description: Standard paginated response
+  /provisioning/phonebooks:
+    get:
+      summary: List provisioning phonebooks
+      responses:
+        "200":
+          description: Standard paginated response
+  /queues:
+    get:
+      summary: List call center queues
+      responses:
+        "200":
+          description: Standard paginated response
+  /queue-agents:
+    get:
+      summary: List queue agents and realtime state
+      responses:
+        "200":
+          description: Standard paginated response
+  /queue-events:
+    get:
+      summary: List queue realtime events
+      responses:
+        "200":
+          description: Standard paginated response
+  /queue-metrics:
+    get:
+      summary: List queue SLA and wallboard metrics
+      responses:
+        "200":
+          description: Standard paginated response
+  /resellers:
+    get:
+      summary: List resellers
+      responses:
+        "200":
+          description: Standard paginated response
+  /billing/subscriptions:
+    get:
+      summary: List billing subscriptions
+      responses:
+        "200":
+          description: Standard paginated response
+  /billing/invoices:
+    get:
+      summary: List billing invoices
+      responses:
+        "200":
+          description: Standard paginated response
+  /billing/usage:
+    get:
+      summary: List billing usage records
+      responses:
+        "200":
+          description: Standard paginated response
+  /billing/webhook:
+    post:
+      security: []
+      summary: Receive payment gateway webhook
+      parameters:
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [stripe, mercadopago, paypal]
+      responses:
+        "200":
+          description: Webhook accepted
+  /webrtc/bootstrap:
+    get:
+      summary: Bootstrap authenticated web softphone session
+      parameters:
+        - name: extension
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SIP.js bootstrap payload
+  /webrtc/preferences:
+    post:
+      summary: Save webphone audio and notification preferences
+      responses:
+        "200":
+          description: Preferences saved
+  /webrtc/presence:
+    post:
+      summary: Update endpoint presence status
+      responses:
+        "200":
+          description: Presence updated
+  /webrtc/events:
+    post:
+      summary: Receive webphone call state events
+      responses:
+        "200":
+          description: Event stored

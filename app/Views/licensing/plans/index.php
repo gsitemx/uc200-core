@@ -8,7 +8,7 @@
         <h2>Planes</h2>
         <p>Define paquetes comerciales y activa features por plan.</p>
     </div>
-    <a class="button primary" href="/licensing/plans/create">Nuevo plan</a>
+    <a class="button primary sm" href="/licensing/plans/create">Nuevo plan</a>
 </section>
 
 <section class="module-panel">
@@ -31,7 +31,7 @@
                         <td><?= e($plan['billing_period']) ?></td>
                         <td><span class="badge <?= (int) $plan['is_active'] === 1 ? 'on' : '' ?>"><?= (int) $plan['is_active'] === 1 ? 'Activo' : 'Inactivo' ?></span></td>
                         <td class="actions-cell">
-                            <a class="button secondary" href="/licensing/plans/edit?id=<?= e($plan['uuid']) ?>">Editar</a>
+                            <a class="button secondary xs" href="/licensing/plans/edit?id=<?= e($plan['uuid']) ?>"><?= e(__('actions.edit')) ?></a>
                             <form method="post" action="/licensing/plans/delete" onsubmit="return confirm('Eliminar plan?');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="id" value="<?= e($plan['uuid']) ?>">

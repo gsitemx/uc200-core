@@ -8,7 +8,7 @@
         <h2>Licencias</h2>
         <p>Asigna planes, fechas de expiracion y limites por empresa.</p>
     </div>
-    <a class="button primary" href="/licensing/licenses/create">Nueva licencia</a>
+    <a class="button primary sm" href="/licensing/licenses/create">Nueva licencia</a>
 </section>
 
 <section class="module-panel">
@@ -33,7 +33,7 @@
                         <td><span class="badge <?= $license['status'] === 'active' ? 'on' : '' ?>"><?= e($license['status']) ?></span></td>
                         <td><?= e(substr((string) $license['starts_at'], 0, 10)) ?> - <?= e($license['expires_at'] ? substr((string) $license['expires_at'], 0, 10) : 'Sin vencimiento') ?></td>
                         <td class="actions-cell">
-                            <a class="button secondary" href="/licensing/licenses/edit?id=<?= e($license['uuid']) ?>">Editar</a>
+                            <a class="button secondary xs" href="/licensing/licenses/edit?id=<?= e($license['uuid']) ?>"><?= e(__('actions.edit')) ?></a>
                             <form method="post" action="/licensing/licenses/delete" onsubmit="return confirm('Eliminar licencia?');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="id" value="<?= e($license['uuid']) ?>">

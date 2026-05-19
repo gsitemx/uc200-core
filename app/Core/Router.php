@@ -24,6 +24,16 @@ final class Router
         $this->add('POST', $path, $handler, $middleware);
     }
 
+    public function put(string $path, array|callable $handler, array $middleware = []): void
+    {
+        $this->add('PUT', $path, $handler, $middleware);
+    }
+
+    public function delete(string $path, array|callable $handler, array $middleware = []): void
+    {
+        $this->add('DELETE', $path, $handler, $middleware);
+    }
+
     private function add(string $method, string $path, array|callable $handler, array $middleware = []): void
     {
         $this->routes[$method][$this->normalize($path)] = [
@@ -39,10 +49,20 @@ final class Router
         $route = $this->routes[$method][$path] ?? null;
 
         if ($route === null) {
+            if (str_starts_with($path, '/api/')) {
+                return new Response(json_encode([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'not_found',
+                        'message' => 'Endpoint not found.',
+                    ],
+                ], JSON_THROW_ON_ERROR), 404, ['Content-Type' => 'application/json']);
+            }
+
             return new Response(view('errors/404', ['path' => $path]), 404);
         }
 
-        if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+        if (! str_starts_with($path, '/api/') && in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             (new CsrfMiddleware())->handle($request);
         }
 

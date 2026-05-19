@@ -19,7 +19,9 @@ final class Request
 
     public function input(string $key, mixed $default = null): mixed
     {
-        return $_POST[$key] ?? $_GET[$key] ?? $default;
+        $json = $this->json();
+
+        return $_POST[$key] ?? $_GET[$key] ?? $json[$key] ?? $default;
     }
 
     public function only(array $keys): array
@@ -43,5 +45,52 @@ final class Request
         $agent = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
         return is_string($agent) ? substr($agent, 0, 255) : null;
+    }
+
+    public function header(string $name, ?string $default = null): ?string
+    {
+        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+
+        if (isset($_SERVER[$key])) {
+            return (string) $_SERVER[$key];
+        }
+
+        if (strtolower($name) === 'authorization' && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            return (string) $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+
+        return $default;
+    }
+
+    public function bearerToken(): ?string
+    {
+        $authorization = $this->header('Authorization', '');
+
+        if (! is_string($authorization) || ! str_starts_with($authorization, 'Bearer ')) {
+            return null;
+        }
+
+        return trim(substr($authorization, 7));
+    }
+
+    public function json(): array
+    {
+        static $payload = null;
+
+        if ($payload !== null) {
+            return $payload;
+        }
+
+        $contentType = (string) ($_SERVER['CONTENT_TYPE'] ?? '');
+        if (! str_contains(strtolower($contentType), 'application/json')) {
+            $payload = [];
+            return $payload;
+        }
+
+        $raw = file_get_contents('php://input') ?: '';
+        $decoded = json_decode($raw, true);
+        $payload = is_array($decoded) ? $decoded : [];
+
+        return $payload;
     }
 }

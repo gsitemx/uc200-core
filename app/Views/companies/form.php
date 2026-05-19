@@ -19,7 +19,7 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sou
                 <span class="eyebrow">Empresa</span>
                 <h3>Datos generales</h3>
             </div>
-            <button class="button primary" type="submit">Guardar</button>
+            <button class="button primary sm" type="submit"><?= e(__('actions.save')) ?></button>
         </div>
 
         <div class="form-grid">
@@ -47,6 +47,16 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sou
                         <option value="<?= e($key) ?>" <?= $value('status', 'active') === $key ? 'selected' : '' ?>><?= e($label) ?></option>
                     <?php endforeach; ?>
                 </select>
+            </label>
+
+            <label class="field">
+                <?= e(__('fields.language')) ?>
+                <select name="locale">
+                    <?php foreach (['es' => 'Espanol', 'en' => 'English'] as $key => $label): ?>
+                        <option value="<?= e($key) ?>" <?= $value('locale', 'es') === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if (! empty($errors['locale'])): ?><small class="field-error"><?= e($errors['locale']) ?></small><?php endif; ?>
             </label>
         </div>
     </section>

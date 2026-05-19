@@ -1,0 +1,10 @@
+; UC200 Core - Asterisk RTP sample
+; Copy this to /etc/asterisk/rtp.conf or merge these values.
+;
+; Open this UDP range in the VPS firewall/security group.
+
+[general]
+rtpstart=10000
+rtpend=20000
+icesupport=no
+strictrtp=yes
