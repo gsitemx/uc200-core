@@ -175,6 +175,60 @@ paths:
       responses:
         "200":
           description: Standard paginated response
+  /security/fail2ban/status:
+    get:
+      summary: Fail2Ban status and active jail details
+      responses:
+        "200":
+          description: Fail2Ban status payload
+  /security/bans:
+    get:
+      summary: List security ban actions
+      responses:
+        "200":
+          description: Security bans list
+  /security/events:
+    get:
+      summary: List recent PBX/SIP security events
+      responses:
+        "200":
+          description: Security events list
+  /security/ban:
+    post:
+      summary: Ban an IP using the configured Fail2Ban jail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ip]
+              properties:
+                ip:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Ban queued or applied
+  /security/unban:
+    post:
+      summary: Unban an IP using the configured Fail2Ban jail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ip]
+              properties:
+                ip:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        "200":
+          description: Unban queued or applied
   /provisioning/devices:
     get:
       summary: List provisioning devices
@@ -265,6 +319,43 @@ paths:
       responses:
         "200":
           description: SIP.js bootstrap payload
+  /webrtc/config:
+    get:
+      summary: Get WebRTC softphone runtime config and short-lived session token
+      parameters:
+        - name: extension
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: WebRTC config payload
+  /webrtc/token:
+    get:
+      summary: Issue short-lived web softphone session token
+      parameters:
+        - name: extension
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Temporary token issued
+  /webrtc/status:
+    get:
+      summary: Read WebRTC/AMI status and optional CRM caller context
+      parameters:
+        - name: extension
+          in: query
+          schema:
+            type: string
+        - name: number
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Runtime status and caller context
   /webrtc/preferences:
     post:
       summary: Save webphone audio and notification preferences
@@ -283,3 +374,15 @@ paths:
       responses:
         "200":
           description: Event stored
+  /realtime/token:
+    get:
+      summary: Issue short-lived Socket.IO JWT for authenticated tenant session
+      responses:
+        "200":
+          description: Realtime token payload
+  /realtime/status:
+    get:
+      summary: Read realtime gateway configuration and health
+      responses:
+        "200":
+          description: Realtime service status

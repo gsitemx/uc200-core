@@ -1,43 +1,8 @@
 <?php
 $user = auth_user();
-$sidebarModules = [
-    ['label' => __('menu.dashboard'), 'path' => '/dashboard', 'icon' => 'grid'],
-    ['label' => __('menu.companies'), 'path' => '/companies', 'icon' => 'building', 'roles' => ['super-admin']],
-    ['label' => __('menu.licensing'), 'path' => '/licensing', 'icon' => 'license', 'roles' => ['super-admin']],
-    ['label' => 'Billing', 'path' => '/billing', 'icon' => 'billing', 'roles' => ['super-admin', 'reseller', 'admin-empresa']],
-    ['label' => __('menu.pbx'), 'path' => '/pbx', 'icon' => 'sip', 'roles' => ['super-admin', 'admin-empresa']],
-    ['label' => 'Call Center', 'path' => '/call-center', 'icon' => 'queue', 'roles' => ['super-admin', 'admin-empresa']],
-    ['label' => 'Softphone', 'path' => '/softphone', 'icon' => 'call', 'roles' => ['super-admin', 'admin-empresa']],
-    ['label' => 'Provisioning', 'path' => '/provisioning', 'icon' => 'phone', 'roles' => ['super-admin', 'admin-empresa']],
-    ['label' => 'API', 'path' => '/settings/api-tokens', 'icon' => 'api', 'roles' => ['super-admin', 'admin-empresa']],
-    ['label' => __('menu.my_company'), 'path' => '/companies/dashboard', 'icon' => 'tenant', 'roles' => ['admin-empresa']],
-    ['label' => __('menu.users'), 'path' => '#', 'icon' => 'users'],
-    ['label' => __('menu.roles'), 'path' => '#', 'icon' => 'shield'],
-    ['label' => __('menu.modules'), 'path' => '#', 'icon' => 'blocks'],
-    ['label' => __('menu.settings'), 'path' => '/settings/profile', 'icon' => 'settings'],
-];
+$menuSections = uc200_menu();
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/dashboard', PHP_URL_PATH) ?: '/dashboard';
 $segments = array_values(array_filter(explode('/', trim($currentPath, '/'))));
-$icon = static function (string $name): string {
-    $attrs = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
-    $paths = match ($name) {
-        'grid' => '<rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect>',
-        'building', 'tenant' => '<path d="M4 21V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v16"></path><path d="M9 21v-5h3v5"></path><path d="M8 7h1"></path><path d="M12 7h1"></path><path d="M8 11h1"></path><path d="M12 11h1"></path><path d="M3 21h18"></path>',
-        'license' => '<path d="M15 7a4 4 0 1 0-3.2 3.9L4 18.7V21h2.3l1.2-1.2H10v-2.3l1.2-1.2v-2.5l3.9-3.9A4 4 0 0 0 15 7Z"></path><path d="M16 7h.01"></path>',
-        'billing' => '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"></path><path d="M9 7h6"></path><path d="M9 11h6"></path><path d="M9 15h3"></path>',
-        'sip', 'call' => '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.4 19.4 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.6a16 16 0 0 0 6.3 6.3l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2Z"></path>',
-        'queue' => '<path d="M4 13v-2a8 8 0 0 1 16 0v2"></path><path d="M18 19a3 3 0 0 0 3-3v-3h-4v6h1Z"></path><path d="M6 19a3 3 0 0 1-3-3v-3h4v6H6Z"></path><path d="M12 19v2"></path><path d="M9 21h6"></path>',
-        'phone' => '<rect x="7" y="2" width="10" height="20" rx="2"></rect><path d="M11 18h2"></path>',
-        'api' => '<path d="m8 9-3 3 3 3"></path><path d="m16 9 3 3-3 3"></path><path d="m14 5-4 14"></path>',
-        'users' => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.9"></path><path d="M16 3.1a4 4 0 0 1 0 7.8"></path>',
-        'shield' => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path><path d="m9 12 2 2 4-4"></path>',
-        'blocks' => '<rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="8.5" y="14" width="7" height="7" rx="1.5"></rect>',
-        'settings' => '<path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1Z"></path>',
-        default => '<circle cx="12" cy="12" r="8"></circle>',
-    };
-
-    return '<svg ' . $attrs . '>' . $paths . '</svg>';
-};
 ?>
 <!doctype html>
 <html lang="<?= e(app_locale()) ?>">
@@ -52,7 +17,7 @@ $icon = static function (string $name): string {
         document.documentElement.dataset.theme = savedTheme || (prefersDark ? 'dark' : 'light');
     </script>
 </head>
-<body>
+<body data-user-id="<?= e((string) ($user['id'] ?? '0')) ?>">
     <div class="app-shell">
         <aside class="sidebar" id="sidebar">
             <div class="brand">
@@ -63,15 +28,70 @@ $icon = static function (string $name): string {
                 </div>
             </div>
 
-            <nav class="nav" aria-label="<?= e(__('menu.modules')) ?>">
-                <?php foreach ($sidebarModules as $item): ?>
-                    <?php if (! empty($item['roles']) && count(array_intersect($item['roles'], $user['roles'] ?? [])) === 0): ?>
-                        <?php continue; ?>
-                    <?php endif; ?>
-                    <a class="nav-link <?= is_active_path($item['path']) ? 'active' : '' ?>" href="<?= e($item['path']) ?>">
-                        <span class="nav-icon"><?= $icon($item['icon']) ?></span>
-                        <span><?= e($item['label']) ?></span>
-                    </a>
+            <div class="sidebar-search">
+                <label class="sr-only" for="menu-search"><?= e(__('menu.search_placeholder')) ?></label>
+                <span class="sidebar-search-icon"><?= render_icon('search') ?></span>
+                <input id="menu-search" type="search" data-menu-search placeholder="<?= e(__('menu.search_placeholder')) ?>" autocomplete="off">
+            </div>
+
+            <nav class="nav nav-sections" aria-label="<?= e(__('menu.modules')) ?>">
+                <section class="nav-section nav-section-favorites" data-menu-favorites-section data-menu-section="favorites" data-default-open="true" hidden>
+                    <button class="nav-section-toggle" type="button" data-menu-section-toggle aria-expanded="true">
+                        <span class="nav-section-label">
+                            <span class="nav-icon nav-icon-section"><?= render_icon('star') ?></span>
+                            <span><?= e(__('menu.favorites')) ?></span>
+                        </span>
+                        <span class="nav-section-toggle-icon"><?= render_icon('chevron-down') ?></span>
+                    </button>
+                    <div class="nav-section-body" data-menu-section-body>
+                        <div class="nav-favorites-list" data-menu-favorites-list></div>
+                    </div>
+                </section>
+
+                <?php foreach ($menuSections as $section): ?>
+                    <section
+                        class="nav-section <?= ! empty($section['active']) ? 'active' : '' ?>"
+                        data-menu-section="<?= e((string) $section['id']) ?>"
+                        data-default-open="<?= ! empty($section['default_open']) ? 'true' : 'false' ?>"
+                    >
+                        <button class="nav-section-toggle" type="button" data-menu-section-toggle aria-expanded="<?= ! empty($section['active']) || ! empty($section['default_open']) ? 'true' : 'false' ?>">
+                            <span class="nav-section-label">
+                                <span class="nav-icon nav-icon-section"><?= render_icon((string) ($section['icon'] ?? 'grid')) ?></span>
+                                <span><?= e((string) $section['label']) ?></span>
+                            </span>
+                            <span class="nav-section-actions">
+                                <?php if (! empty($section['badge_value'])): ?>
+                                    <span class="badge <?= e((string) ($section['badge_tone'] ?? '')) ?>"><?= e((string) $section['badge_value']) ?></span>
+                                <?php endif; ?>
+                                <span class="nav-section-toggle-icon"><?= render_icon('chevron-down') ?></span>
+                            </span>
+                        </button>
+
+                        <div class="nav-section-body" data-menu-section-body>
+                            <?php foreach ($section['items'] as $item): ?>
+                                <div
+                                    class="nav-item-row <?= ! empty($item['active']) ? 'active' : '' ?>"
+                                    data-menu-item-row
+                                    data-menu-item-id="<?= e((string) $item['id']) ?>"
+                                    data-menu-item-source="1"
+                                    data-menu-search-text="<?= e((string) $item['search']) ?>"
+                                >
+                                    <a class="nav-link <?= ! empty($item['active']) ? 'active' : '' ?>" href="<?= e((string) $item['path']) ?>" data-menu-link>
+                                        <span class="nav-icon"><?= render_icon((string) ($item['icon'] ?? 'grid')) ?></span>
+                                        <span class="nav-link-text"><?= e((string) $item['label']) ?></span>
+                                    </a>
+                                    <div class="nav-item-actions">
+                                        <?php if (! empty($item['badge_value'])): ?>
+                                            <span class="badge <?= e((string) ($item['badge_tone'] ?? '')) ?>"><?= e((string) $item['badge_value']) ?></span>
+                                        <?php endif; ?>
+                                        <button class="nav-favorite-toggle" type="button" data-menu-favorite-toggle aria-label="<?= e(__('menu.favorites')) ?>">
+                                            <?= render_icon('star') ?>
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </section>
                 <?php endforeach; ?>
             </nav>
 
@@ -110,8 +130,17 @@ $icon = static function (string $name): string {
                         <?php elseif (str_starts_with($currentPath, '/billing')): ?>
                             <a class="button secondary xs" href="/billing/subscriptions">Subscriptions</a>
                             <a class="button secondary xs" href="/billing/invoices">Invoices</a>
+                        <?php elseif (str_starts_with($currentPath, '/crm')): ?>
+                            <a class="button secondary xs" href="/crm/contacts/create">Nuevo contacto</a>
+                            <a class="button secondary xs" href="/crm/accounts/create">Nueva cuenta</a>
+                            <a class="button secondary xs" href="/crm/activity">Actividad</a>
+                        <?php elseif (str_starts_with($currentPath, '/security')): ?>
+                            <a class="button secondary xs" href="/security/bans">Bloquear IP</a>
+                            <a class="button secondary xs" href="/security/fail2ban">Fail2Ban</a>
+                            <a class="button secondary xs" href="/security/firewall">Firewall</a>
                         <?php endif; ?>
                     </div>
+                    <span class="badge" data-realtime-connection>Realtime offline</span>
                     <button class="icon-button" type="button" data-theme-toggle aria-label="<?= e(__('actions.toggle_theme')) ?>">D</button>
                     <form class="locale-switcher" method="post" action="/settings/language">
                         <?= csrf_field() ?>
@@ -138,6 +167,13 @@ $icon = static function (string $name): string {
             </main>
         </div>
     </div>
+    <script>
+        window.UC200RealtimeConfig = {
+            tokenEndpoint: '/api/v1/realtime/token',
+            statusEndpoint: '/api/v1/realtime/status'
+        };
+    </script>
     <script src="/assets/js/app.js"></script>
+    <script src="/assets/js/realtime.js"></script>
 </body>
 </html>

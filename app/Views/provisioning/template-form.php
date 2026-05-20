@@ -14,6 +14,7 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sou
             <div>
                 <span class="eyebrow">Provisioning template</span>
                 <h3><?= e($title) ?></h3>
+                <p>Solo usuarios avanzados. El flujo recomendado usa plantillas internas precargadas.</p>
             </div>
             <button class="button primary sm" type="submit">Guardar</button>
         </div>

@@ -1,0 +1,27 @@
+# Example sudoers fragment for UC200 Security Center.
+# Install with:
+#   cp scripts/security/uc200-security.sudoers /etc/sudoers.d/uc200-security
+#   chmod 440 /etc/sudoers.d/uc200-security
+#
+# Adjust the web user if your stack uses apache/nginx+php-fpm with a different account.
+
+Defaults:www-data !requiretty
+
+Cmnd_Alias UC200_FAIL2BAN = /usr/bin/fail2ban-client status, \
+    /usr/bin/fail2ban-client status uc200-asterisk, \
+    /usr/bin/fail2ban-client reload, \
+    /usr/bin/fail2ban-client set uc200-asterisk banip *, \
+    /usr/bin/fail2ban-client set uc200-asterisk unbanip *
+
+Cmnd_Alias UC200_SYSTEMCTL = /usr/bin/systemctl restart fail2ban
+
+Cmnd_Alias UC200_IPTABLES = /usr/sbin/iptables -S UC200_SECURITY, \
+    /bin/sh -c /usr/sbin/iptables -N UC200_SECURITY 2>/dev/null || true, \
+    /bin/sh -c /usr/sbin/iptables -C INPUT -j UC200_SECURITY 2>/dev/null || /usr/sbin/iptables -I INPUT -j UC200_SECURITY, \
+    /bin/sh -c /usr/sbin/iptables -C UC200_SECURITY -s * -j DROP 2>/dev/null || /usr/sbin/iptables -A UC200_SECURITY -s * -j DROP, \
+    /bin/sh -c /usr/sbin/iptables -D UC200_SECURITY -s * -j DROP 2>/dev/null || true, \
+    /bin/sh -c /usr/sbin/iptables-save > /etc/iptables/rules.v4, \
+    /bin/sh -c /usr/sbin/iptables-save > /etc/sysconfig/iptables, \
+    /usr/sbin/iptables-save
+
+www-data ALL=(root) NOPASSWD: UC200_FAIL2BAN, UC200_SYSTEMCTL, UC200_IPTABLES

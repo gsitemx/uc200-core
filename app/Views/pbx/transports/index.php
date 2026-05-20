@@ -4,9 +4,9 @@
 
 <section class="hero-panel">
     <div>
-        <span class="eyebrow">PJSIP</span>
-        <h2>SIP Transports</h2>
-        <p>Transports preparados para Realtime. WebRTC queda fuera de este alcance.</p>
+        <span class="eyebrow">Modo avanzado</span>
+        <h2>Metodos de conexion SIP</h2>
+        <p>Configuracion tecnica del motor de comunicaciones. Solo para superadmin/engineer.</p>
     </div>
     <a class="button primary sm" href="/pbx/transports/create"><?= e(__('actions.new_transport')) ?></a>
 </section>
@@ -34,7 +34,7 @@
                         <td><span class="badge <?= $transport['status'] === 'active' ? 'on' : '' ?>"><?= e($transport['status']) ?></span></td>
                         <td class="actions-cell">
                             <a class="button secondary xs" href="/pbx/transports/edit?id=<?= e($transport['uuid']) ?>"><?= e(__('actions.edit')) ?></a>
-                            <form method="post" action="/pbx/transports/delete" onsubmit="return confirm('Eliminar transport?');">
+                            <form method="post" action="/pbx/transports/delete" onsubmit="return confirm('Eliminar metodo de conexion?');">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="id" value="<?= e($transport['uuid']) ?>">
                                 <button class="button danger" type="submit">Eliminar</button>

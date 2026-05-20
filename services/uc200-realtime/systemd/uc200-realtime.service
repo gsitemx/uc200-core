@@ -1,0 +1,18 @@
+[Unit]
+Description=UC200 Realtime Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/uc200-realtime
+EnvironmentFile=/opt/uc200-realtime/.env
+ExecStart=/usr/bin/node /opt/uc200-realtime/server.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

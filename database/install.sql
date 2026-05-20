@@ -682,7 +682,9 @@ CREATE TABLE IF NOT EXISTS provisioning_templates (
     name VARCHAR(120) NOT NULL,
     vendor ENUM('yealink', 'grandstream', 'fanvil', 'poly', 'cisco') NOT NULL,
     model VARCHAR(80) NULL,
+    template_key VARCHAR(120) NULL,
     content MEDIUMTEXT NOT NULL,
+    is_system TINYINT(1) NOT NULL DEFAULT 0,
     status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -700,12 +702,14 @@ CREATE TABLE IF NOT EXISTS provisioning_devices (
     company_id BIGINT UNSIGNED NOT NULL,
     extension_uuid CHAR(36) NULL,
     template_id BIGINT UNSIGNED NULL,
+    template_key VARCHAR(120) NULL,
     mac_address CHAR(12) NOT NULL,
     vendor ENUM('yealink', 'grandstream', 'fanvil', 'poly', 'cisco') NOT NULL,
     model VARCHAR(80) NOT NULL,
     firmware_version VARCHAR(80) NULL,
     display_name VARCHAR(120) NULL,
     provisioning_secret VARCHAR(64) NOT NULL,
+    generated_filename VARCHAR(190) NULL,
     blf_json TEXT NULL,
     rps_enabled ENUM('yes', 'no') NOT NULL DEFAULT 'no',
     last_provisioned_at DATETIME NULL,
@@ -749,7 +753,15 @@ CREATE TABLE IF NOT EXISTS provisioning_phonebooks (
 -- Billing Engine + Reseller Platform enterprise schema.
 -- Kept in a migration file as well so existing installs can apply it independently.
 SOURCE database/updates/2026_05_18_billing_reseller_engine.sql;
-SOURCE database/updates/2026_05_18_webrtc_softphone.sql;
+SOURCE database/updates/2026_05_15_webrtc_softphone.sql;
+SOURCE database/updates/2026_05_20_device_provisioning.sql;
+SOURCE database/updates/2026_05_20_provisioning_preloaded_templates.sql;
 SOURCE database/updates/2026_05_18_queue_call_center.sql;
 SOURCE database/updates/2026_05_15_identity_email_sidebar_fix.sql;
 SOURCE database/updates/2026_05_19_pbx_extension_ux.sql;
+SOURCE database/updates/2026_05_15_crm_contacts.sql;
+SOURCE database/updates/2026_05_15_crm_call_history.sql;
+SOURCE database/updates/2026_05_15_ami_gateway.sql;
+SOURCE database/updates/2026_05_20_call_control_engine.sql;
+SOURCE database/updates/2026_05_19_realtime_engine.sql;
+SOURCE database/updates/2026_05_19_security_fail2ban_center.sql;

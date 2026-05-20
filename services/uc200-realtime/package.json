@@ -1,0 +1,17 @@
+{
+  "name": "uc200-realtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UC200 enterprise realtime gateway for AMI and Socket.IO.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "asterisk-ami-client": "^1.1.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}

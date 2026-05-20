@@ -23,6 +23,10 @@ final class ResourceApiController extends Controller
     public function provisioningDevices(Request $request): Response { return $this->index($request, 'provisioning_devices'); }
     public function provisioningTemplates(Request $request): Response { return $this->index($request, 'provisioning_templates'); }
     public function provisioningPhonebooks(Request $request): Response { return $this->index($request, 'provisioning_phonebooks'); }
+    public function crmContacts(Request $request): Response { return $this->index($request, 'crm_contacts'); }
+    public function crmAccounts(Request $request): Response { return $this->index($request, 'crm_accounts'); }
+    public function crmActivities(Request $request): Response { return $this->index($request, 'crm_activities'); }
+    public function crmCalls(Request $request): Response { return $this->index($request, 'crm_calls'); }
     public function queues(Request $request): Response { return $this->index($request, 'queues'); }
     public function queueAgents(Request $request): Response { return $this->index($request, 'queue_agents'); }
     public function queueEvents(Request $request): Response { return $this->index($request, 'queue_events'); }
@@ -160,6 +164,46 @@ final class ResourceApiController extends Controller
                 'filterable' => ['status'],
                 'sortable' => ['p.name', 'p.created_at', 'p.updated_at'],
                 'default_sort' => 'p.name',
+            ],
+            'crm_contacts' => [
+                'alias' => 'ct',
+                'from' => 'crm_contacts ct INNER JOIN companies c ON c.id = ct.company_id LEFT JOIN crm_accounts a ON a.id = ct.account_id',
+                'tenant' => true,
+                'select' => ['ct.uuid', 'ct.company_id', 'c.name AS company_name', 'a.uuid AS account_uuid', 'a.trade_name AS account_name', 'ct.full_name', 'ct.organization', 'ct.job_title', 'ct.email', 'ct.mobile_phone', 'ct.office_phone', 'ct.related_extension_id', 'ct.tags', 'ct.source', 'ct.external_provider', 'ct.external_id', 'ct.sync_enabled', 'ct.last_synced_at', 'ct.status', 'ct.created_at', 'ct.updated_at'],
+                'search' => ['ct.full_name', 'ct.organization', 'ct.email', 'ct.mobile_phone', 'ct.office_phone', 'ct.tags'],
+                'filterable' => ['status', 'source', 'external_provider'],
+                'sortable' => ['ct.full_name', 'ct.email', 'ct.created_at', 'ct.updated_at'],
+                'default_sort' => 'ct.full_name',
+            ],
+            'crm_accounts' => [
+                'alias' => 'a',
+                'from' => 'crm_accounts a INNER JOIN companies c ON c.id = a.company_id',
+                'tenant' => true,
+                'select' => ['a.uuid', 'a.company_id', 'c.name AS company_name', 'a.trade_name', 'a.legal_name', 'a.tax_id', 'a.primary_email', 'a.primary_phone', 'a.website', 'a.external_provider', 'a.external_id', 'a.sync_enabled', 'a.last_synced_at', 'a.status', 'a.created_at', 'a.updated_at'],
+                'search' => ['a.trade_name', 'a.legal_name', 'a.tax_id', 'a.primary_email', 'a.primary_phone'],
+                'filterable' => ['status', 'external_provider'],
+                'sortable' => ['a.trade_name', 'a.created_at', 'a.updated_at'],
+                'default_sort' => 'a.trade_name',
+            ],
+            'crm_activities' => [
+                'alias' => 'ac',
+                'from' => 'crm_activities ac INNER JOIN companies c ON c.id = ac.company_id LEFT JOIN crm_contacts ct ON ct.id = ac.contact_id LEFT JOIN crm_accounts a ON a.id = ac.account_id',
+                'tenant' => true,
+                'select' => ['ac.uuid', 'ac.company_id', 'c.name AS company_name', 'ct.uuid AS contact_uuid', 'ct.full_name AS contact_name', 'a.uuid AS account_uuid', 'a.trade_name AS account_name', 'ac.activity_type', 'ac.subject', 'ac.direction', 'ac.call_uniqueid', 'ac.occurred_at', 'ac.created_at'],
+                'search' => ['ct.full_name', 'a.trade_name', 'ac.subject', 'ac.activity_type'],
+                'filterable' => ['activity_type', 'direction'],
+                'sortable' => ['ac.occurred_at', 'ac.created_at'],
+                'default_sort' => 'ac.occurred_at',
+            ],
+            'crm_calls' => [
+                'alias' => 'cl',
+                'from' => 'crm_call_logs cl INNER JOIN companies c ON c.id = cl.company_id LEFT JOIN crm_contacts ct ON ct.id = cl.contact_id LEFT JOIN ps_endpoints e ON e.id = cl.extension_id',
+                'tenant' => true,
+                'select' => ['cl.uuid', 'cl.company_id', 'c.name AS company_name', 'ct.uuid AS contact_uuid', 'ct.full_name AS contact_name', 'e.extension_number', 'cl.extension_id', 'cl.direction', 'cl.src', 'cl.dst', 'cl.start_time', 'cl.answer_time', 'cl.end_time', 'cl.duration', 'cl.billsec', 'cl.disposition', 'cl.recording_path', 'cl.uniqueid', 'cl.linkedid', 'cl.created_at'],
+                'search' => ['ct.full_name', 'cl.src', 'cl.dst', 'cl.uniqueid', 'cl.linkedid'],
+                'filterable' => ['direction', 'disposition'],
+                'sortable' => ['cl.start_time', 'cl.duration', 'cl.billsec', 'cl.created_at'],
+                'default_sort' => 'cl.start_time',
             ],
             'queues' => $this->flowResource('pbx_queues', 'q', ['q.uuid', 'q.company_id', 'c.name AS company_name', 'q.name', 'q.extension', 'q.strategy', 'q.timeout_seconds', 'q.retry_seconds', 'q.wrapup_seconds', 'q.max_callers', 'q.music_on_hold', 'q.announce_position', 'q.announce_hold_time', 'q.service_level_seconds', 'q.overflow_destination_type', 'q.overflow_destination_id', 'q.failover_destination_type', 'q.failover_destination_id', 'q.recording_enabled', 'q.status', 'q.created_at', 'q.updated_at'], ['q.name', 'q.extension']),
             'queue_agents' => [

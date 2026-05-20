@@ -8,34 +8,48 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Session;
+use App\Services\AmiService;
 use App\Services\AuditService;
 use App\Services\ApiTokenService;
+use App\Services\SoftphoneService;
+use App\Services\SipCredentialGenerator;
 use App\Support\ApiResponse;
 
 final class WebRtcController extends Controller
 {
     public function softphone(Request $request): string
     {
+        $companyId = (int) Session::get('company_id', 0);
+        $softphone = $this->softphoneService();
+
         return view('webrtc/softphone', [
             'title' => 'Web Softphone',
             'extensions' => $this->extensionRows(),
-            'settings' => $this->companySettings(),
+            'settings' => $softphone->settings($companyId),
+            'metrics' => $softphone->metrics($companyId > 0 ? $companyId : null),
             'preferences' => $this->userPreferences(),
             'favorites' => $this->favorites(),
             'recentCalls' => $this->recentCalls(),
             'presence' => $this->presenceRows(),
+            'ami' => (new AmiService($this->db()))->status($companyId),
             'flash' => Session::flash('success'),
+            'error' => Session::flash('error'),
         ]);
     }
 
     public function bootstrap(Request $request): Response
     {
+        return $this->config($request);
+    }
+
+    public function config(Request $request): Response
+    {
         if (! $this->isAuthenticated()) {
             return ApiResponse::error('unauthenticated', 'Session required.', 401);
         }
 
-        if ($this->rateLimited('webrtc:bootstrap:' . (int) Session::get('user_id'), 30, 60)) {
-            return ApiResponse::error('rate_limited', 'Too many WebRTC bootstrap requests.', 429);
+        if ($this->rateLimited('webrtc:config:' . (int) Session::get('user_id'), 30, 60)) {
+            return ApiResponse::error('rate_limited', 'Too many WebRTC config requests.', 429);
         }
 
         $extensionUuid = (string) $request->input('extension', '');
@@ -44,9 +58,24 @@ final class WebRtcController extends Controller
             return ApiResponse::error('not_found', 'No WebRTC extension available for this tenant.', 404);
         }
 
-        $settings = $this->companySettings();
+        $settings = $this->softphoneService()->settings((int) $extension['company_id']);
+        if (($settings['enable_webrtc'] ?? 'yes') !== 'yes') {
+            return ApiResponse::error('webrtc_disabled', 'WebRTC is disabled for this tenant.', 423);
+        }
+
         $preferences = $this->upsertPreferences((string) $extension['uuid'], (int) $extension['company_id']);
-        $token = $this->createSessionToken((int) $extension['company_id'], (string) $extension['id']);
+        $token = $this->softphoneService()->issueSessionToken(
+            (int) Session::get('user_id'),
+            (int) $extension['company_id'],
+            (string) $extension['id'],
+            (int) ($settings['session_timeout_minutes'] ?? 480)
+        );
+        $sip = (new SipCredentialGenerator())->forEndpoint($extension, $settings);
+
+        (new AuditService($this->db()))->record('webrtc.config.issued', 'ps_endpoints', null, [
+            'endpoint' => $extension['id'],
+            'transport' => $sip['transport'],
+        ], (int) $extension['company_id']);
 
         return ApiResponse::success([
             'token' => $token['plain'],
@@ -55,18 +84,94 @@ final class WebRtcController extends Controller
                 'company_id' => (int) $extension['company_id'],
                 'company_name' => $extension['company_name'],
             ],
-            'sip' => [
-                'uri' => 'sip:' . $extension['auth_username'] . '@' . $settings['sip_domain'],
-                'authorization_username' => $extension['auth_username'],
-                'password' => $extension['auth_password'],
-                'display_name' => $extension['extension_number'],
-                'websocket_url' => $settings['wss_url'],
-                'transport' => $extension['transport'] ?: 'transport-wss',
-                'stun_servers' => $this->jsonList($settings['stun_urls']),
-                'turn_servers' => $this->jsonList($settings['turn_urls']),
-            ],
+            'sip' => $sip,
             'preferences' => $preferences,
             'presence' => $this->presenceRows(),
+            'status' => [
+                'softphone_connected' => $this->softphoneService()->connectedForUser(
+                    (int) Session::get('user_id'),
+                    (int) $extension['company_id'],
+                    (string) $extension['id']
+                ),
+                'ami' => (new AmiService($this->db()))->status((int) $extension['company_id']),
+                'metrics' => $this->softphoneService()->metrics((int) $extension['company_id']),
+            ],
+        ]);
+    }
+
+    public function token(Request $request): Response
+    {
+        if (! $this->isAuthenticated()) {
+            return ApiResponse::error('unauthenticated', 'Session required.', 401);
+        }
+
+        if ($this->rateLimited('webrtc:token:' . (int) Session::get('user_id'), 45, 60)) {
+            return ApiResponse::error('rate_limited', 'Too many WebRTC token requests.', 429);
+        }
+
+        $extension = $this->extensionForSoftphone((string) $request->input('extension', ''));
+        if ($extension === null) {
+            return ApiResponse::error('not_found', 'No WebRTC extension available for this tenant.', 404);
+        }
+
+        $settings = $this->softphoneService()->settings((int) $extension['company_id']);
+        if (($settings['enable_webrtc'] ?? 'yes') !== 'yes') {
+            return ApiResponse::error('webrtc_disabled', 'WebRTC is disabled for this tenant.', 423);
+        }
+
+        $token = $this->softphoneService()->issueSessionToken(
+            (int) Session::get('user_id'),
+            (int) $extension['company_id'],
+            (string) $extension['id'],
+            (int) ($settings['session_timeout_minutes'] ?? 480)
+        );
+
+        return ApiResponse::success([
+            'token' => $token['plain'],
+            'expires_at' => $token['expires_at'],
+            'session_timeout_minutes' => (int) ($settings['session_timeout_minutes'] ?? 480),
+        ]);
+    }
+
+    public function status(Request $request): Response
+    {
+        $session = null;
+        $companyId = 0;
+        $endpointId = null;
+        $userId = (int) Session::get('user_id', 0);
+
+        if ($this->isAuthenticated()) {
+            if ($this->rateLimited('webrtc:status:' . $userId, 120, 60)) {
+                return ApiResponse::error('rate_limited', 'Too many WebRTC status requests.', 429);
+            }
+
+            $extension = $this->extensionForSoftphone((string) $request->input('extension', ''));
+            if ($extension !== null) {
+                $companyId = (int) $extension['company_id'];
+                $endpointId = (string) $extension['id'];
+            } else {
+                $companyId = (int) Session::get('company_id', 0);
+            }
+        } else {
+            $session = $this->softphoneService()->sessionByToken($request->bearerToken());
+            if ($session === null) {
+                return ApiResponse::error('unauthenticated', 'Session or softphone token required.', 401);
+            }
+
+            $companyId = (int) $session['company_id'];
+            $endpointId = (string) $session['endpoint_id'];
+            $userId = (int) $session['user_id'];
+        }
+
+        $number = trim((string) $request->input('number', ''));
+        $contact = $number !== '' && $companyId > 0 ? $this->softphoneService()->callerContext($companyId, $number) : null;
+
+        return ApiResponse::success([
+            'softphone_connected' => $companyId > 0 ? $this->softphoneService()->connectedForUser($userId, $companyId, $endpointId) : false,
+            'ami' => $companyId > 0 ? (new AmiService($this->db()))->status($companyId) : ['connected' => false, 'message' => 'Tenant not selected.'],
+            'metrics' => $this->softphoneService()->metrics($companyId > 0 ? $companyId : null),
+            'presence' => $companyId > 0 ? $this->presenceRows() : [],
+            'contact' => $contact,
         ]);
     }
 
@@ -189,6 +294,35 @@ final class WebRtcController extends Controller
         return ApiResponse::success(['recorded' => true]);
     }
 
+    public function saveSettings(Request $request): void
+    {
+        $scopeCompanyId = has_role('super-admin') ? null : (int) Session::get('company_id');
+        $settings = $this->softphoneService()->saveSettings($scopeCompanyId, [
+            'sip_domain' => $request->input('sip_domain', ''),
+            'enable_webrtc' => $request->input('enable_webrtc', 'no'),
+            'websocket_port' => $request->input('websocket_port', 8089),
+            'websocket_path' => $request->input('websocket_path', '/ws'),
+            'wss_url' => $request->input('wss_url', ''),
+            'stun_server' => $request->input('stun_server', ''),
+            'turn_server' => $request->input('turn_server', ''),
+            'dtls_enabled' => $request->input('dtls_enabled', 'yes'),
+            'ice_enabled' => $request->input('ice_enabled', 'yes'),
+            'notifications_enabled' => $request->input('notifications_enabled', 'yes'),
+            'session_timeout_minutes' => $request->input('session_timeout_minutes', 480),
+        ]);
+
+        (new AuditService($this->db()))->record('webrtc.settings_saved', 'webphone_settings', null, [
+            'scope_company_id' => $scopeCompanyId,
+            'enable_webrtc' => $settings['enable_webrtc'],
+            'websocket_port' => $settings['websocket_port'],
+            'dtls_enabled' => $settings['dtls_enabled'],
+            'ice_enabled' => $settings['ice_enabled'],
+        ], $scopeCompanyId);
+
+        Session::flash('success', 'Configuracion WebRTC guardada.');
+        redirect('/softphone');
+    }
+
     public function enableEndpoint(Request $request): void
     {
         $extensionUuid = (string) $request->input('id', '');
@@ -269,23 +403,7 @@ final class WebRtcController extends Controller
 
     private function companySettings(): array
     {
-        $companyId = (int) (Session::get('company_id') ?? 0);
-        $statement = $this->db()->prepare(
-            'SELECT * FROM webphone_settings WHERE (company_id = :company_id OR company_id IS NULL) AND deleted_at IS NULL ORDER BY company_id DESC LIMIT 1'
-        );
-        $statement->execute(['company_id' => $companyId]);
-        $settings = $statement->fetch() ?: [];
-        $host = $_SERVER['HTTP_HOST'] ?? env('APP_URL', 'localhost');
-        $host = preg_replace('/:\d+$/', '', (string) $host);
-
-        return [
-            'sip_domain' => $settings['sip_domain'] ?? $host,
-            'wss_url' => $settings['wss_url'] ?? 'wss://' . $host . ':8089/ws',
-            'stun_urls' => $settings['stun_urls'] ?? '["stun:stun.l.google.com:19302"]',
-            'turn_urls' => $settings['turn_urls'] ?? '[]',
-            'notifications_enabled' => $settings['notifications_enabled'] ?? 'yes',
-            'session_timeout_minutes' => (int) ($settings['session_timeout_minutes'] ?? 480),
-        ];
+        return $this->softphoneService()->settings((int) (Session::get('company_id') ?? 0));
     }
 
     private function userPreferences(): array
@@ -368,39 +486,18 @@ final class WebRtcController extends Controller
     private function createSessionToken(int $companyId, string $endpointId): array
     {
         $settings = $this->companySettings();
-        $minutes = max(5, (int) $settings['session_timeout_minutes']);
-        $plain = 'uc200_webrtc_' . bin2hex(random_bytes(24));
-        $expiresAt = gmdate('Y-m-d H:i:s', strtotime('+' . $minutes . ' minutes'));
-        $this->db()->prepare(
-            'INSERT INTO webrtc_session_tokens (uuid, user_id, company_id, endpoint_id, token_hash, expires_at)
-             VALUES (:uuid, :user_id, :company_id, :endpoint_id, :token_hash, :expires_at)'
-        )->execute([
-            'uuid' => uuid(),
-            'user_id' => (int) Session::get('user_id'),
-            'company_id' => $companyId,
-            'endpoint_id' => $endpointId,
-            'token_hash' => hash('sha256', $plain),
-            'expires_at' => $expiresAt,
-        ]);
 
-        return ['plain' => $plain, 'expires_at' => $expiresAt];
+        return $this->softphoneService()->issueSessionToken(
+            (int) Session::get('user_id'),
+            $companyId,
+            $endpointId,
+            (int) ($settings['session_timeout_minutes'] ?? 480)
+        );
     }
 
     private function eventSession(Request $request): ?array
     {
-        $token = $request->bearerToken();
-        if ($token === null) {
-            return null;
-        }
-
-        $statement = $this->db()->prepare(
-            'SELECT * FROM webrtc_session_tokens
-             WHERE token_hash = :token_hash AND revoked_at IS NULL AND expires_at > UTC_TIMESTAMP() LIMIT 1'
-        );
-        $statement->execute(['token_hash' => hash('sha256', $token)]);
-        $row = $statement->fetch();
-
-        return is_array($row) ? $row : null;
+        return $this->softphoneService()->sessionByToken($request->bearerToken());
     }
 
     private function storeRecentCall(array $session, array $payload, string $eventType): void
@@ -426,8 +523,9 @@ final class WebRtcController extends Controller
     private function syncPresenceFromEvent(array $session, string $eventType): void
     {
         $status = match ($eventType) {
-            'call.created', 'call.ringing' => 'ringing',
-            'call.answered', 'call.hold', 'call.transfer' => 'busy',
+            'call.created', 'call.ringing', 'call.pickup' => 'ringing',
+            'call.answered', 'call.hold', 'call.unhold', 'call.transfer' => 'busy',
+            'call.park' => 'available',
             'call.ended', 'call.failed', 'call.missed', 'unregister' => 'available',
             'register' => 'available',
             default => null,
@@ -482,5 +580,10 @@ final class WebRtcController extends Controller
     private function isAuthenticated(): bool
     {
         return Session::get('user_id') !== null;
+    }
+
+    private function softphoneService(): SoftphoneService
+    {
+        return new SoftphoneService($this->db());
     }
 }

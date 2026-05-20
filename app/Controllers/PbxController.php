@@ -8,7 +8,13 @@ use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Session;
+use App\Services\AmiService;
+use App\Services\AmiSettingsService;
+use App\Services\ApiTokenService;
 use App\Services\AuditService;
+use App\Services\CallLogService;
+use App\Services\PermissionService;
+use App\Services\SoftphoneService;
 use PDO;
 use Throwable;
 
@@ -20,17 +26,25 @@ final class PbxController extends Controller
             return $this->setupView();
         }
 
+        $metrics = $this->callLogService()->dashboardMetrics(has_role('super-admin') ? null : (int) Session::get('company_id'));
+        $softphoneMetrics = (new SoftphoneService($this->db()))->metrics(has_role('super-admin') ? null : (int) Session::get('company_id'));
+
         return view('pbx/dashboard', [
             'title' => __('modules.pbx'),
             'flash' => Session::flash('success'),
+            'error' => Session::flash('error'),
+            'ami' => $this->amiPanel(),
+            'webrtc' => (new SoftphoneService($this->db()))->settings(has_role('super-admin') ? null : (int) Session::get('company_id')),
             'cards' => [
-                ['label' => __('modules.extensions'), 'value' => $this->count('ps_endpoints'), 'hint' => __('pbx.extensions_hint')],
-                ['label' => __('modules.transports'), 'value' => $this->count('ps_transports'), 'hint' => __('pbx.transports_hint')],
+                ['label' => 'Llamadas activas', 'value' => $metrics['active_calls'], 'hint' => 'Preparado para realtime y CDR.', 'realtime_key' => 'active_calls'],
+                ['label' => 'Extensiones registradas', 'value' => $metrics['registered_extensions'], 'hint' => __('pbx.registered_hint'), 'realtime_key' => 'extensions_online'],
+                ['label' => 'Softphones conectados', 'value' => $softphoneMetrics['softphones_connected'], 'hint' => 'Sesiones WebRTC activas por tenant.', 'realtime_key' => 'softphones_connected'],
+                ['label' => 'Llamadas hoy', 'value' => $metrics['calls_today'], 'hint' => 'Actividad del tenant en la fecha actual.'],
+                ['label' => 'Llamadas perdidas', 'value' => $metrics['missed_calls'], 'hint' => 'NO ANSWER, BUSY, FAILED o CANCEL.'],
+                ['label' => 'Agentes online', 'value' => $metrics['agents_online'], 'hint' => 'Queue agents o presencia PBX.', 'realtime_key' => 'agents_online'],
                 ['label' => __('modules.recordings'), 'value' => $this->count('pbx_recordings'), 'hint' => __('pbx.recordings_hint')],
                 ['label' => 'Ring Groups', 'value' => $this->count('pbx_ring_groups'), 'hint' => 'Distribucion interna por tenant.'],
                 ['label' => 'SIP Trunks', 'value' => $this->count('pbx_sip_trunks'), 'hint' => 'Troncales realtime PJSIP.'],
-                ['label' => __('fields.status'), 'value' => $this->countByStatus('registered'), 'hint' => __('pbx.registered_hint')],
-                ['label' => 'Presencia', 'value' => $this->countPresenceReady(), 'hint' => __('pbx.presence_hint')],
             ],
             'flowModules' => [
                 ['label' => 'Ring Groups', 'href' => '/pbx/ring-groups', 'hint' => 'Estrategias ringall, hunt y failover.'],
@@ -55,7 +69,76 @@ final class PbxController extends Controller
             'title' => __('modules.extensions'),
             'extensions' => $this->extensionRows(),
             'flash' => Session::flash('success'),
+            'error' => Session::flash('error'),
+            'ami' => $this->amiPanel(),
         ]);
+    }
+
+    public function saveAmiSettings(Request $request): void
+    {
+        $scopeCompanyId = has_role('super-admin') ? null : (int) Session::get('company_id');
+        (new AmiSettingsService($this->db()))->save($scopeCompanyId, [
+            'enabled' => $request->input('enabled', 'no'),
+            'host' => $request->input('host', '127.0.0.1'),
+            'port' => $request->input('port', 5038),
+            'username' => $request->input('username', 'admin'),
+            'password' => $request->input('password', ''),
+            'connect_timeout' => $request->input('connect_timeout', 3),
+            'originate_context' => $request->input('originate_context', ''),
+        ]);
+
+        (new AuditService($this->db()))->record('pbx.ami.settings_saved', 'settings', null, [
+            'scope_company_id' => $scopeCompanyId,
+            'host' => (string) $request->input('host', '127.0.0.1'),
+            'port' => (int) $request->input('port', 5038),
+            'enabled' => (string) $request->input('enabled', 'no'),
+        ], $scopeCompanyId);
+
+        Session::flash('success', 'Configuracion AMI guardada.');
+        redirect('/pbx');
+    }
+
+    public function originate(Request $request): void
+    {
+        $redirectTo = (string) $request->input('redirect_to', '/pbx/extensions');
+        if (! str_starts_with($redirectTo, '/')) {
+            $redirectTo = '/pbx/extensions';
+        }
+
+        $userId = (int) Session::get('user_id', 0);
+        if (! $this->hasPermission($userId, 'pbx.originate')) {
+            Session::flash('error', 'No tienes permiso para originar llamadas desde el panel.');
+            redirect($redirectTo);
+        }
+
+        if ($this->rateLimited('web-originate:' . $userId, 12, 60)) {
+            Session::flash('error', 'Se alcanzo el limite temporal de originate para este usuario.');
+            redirect($redirectTo);
+        }
+
+        $companyId = has_role('super-admin')
+            ? (int) $request->input('company_id', 0)
+            : (int) Session::get('company_id', 0);
+        $origin = trim((string) $request->input('origin_extension', ''));
+        $destination = trim((string) $request->input('destination', ''));
+        if ($origin === '') {
+            $origin = (string) ($this->userExtension($companyId)['id'] ?? '');
+        }
+
+        $result = (new PbxOriginateService($this->db()))->request($companyId, $origin, $destination, [
+            'requested_by_user_id' => $userId,
+            'source' => 'panel',
+        ]);
+
+        (new AuditService($this->db()))->record('pbx.originate.requested', 'ps_endpoints', null, [
+            'origin_extension' => $origin,
+            'destination' => $destination,
+            'queued' => $result['queued'] ?? false,
+            'simulated' => $result['simulated'] ?? false,
+        ], $companyId > 0 ? $companyId : null);
+
+        Session::flash(($result['queued'] ?? false) ? 'success' : 'error', (string) ($result['message'] ?? 'No se pudo originar la llamada.'));
+        redirect($redirectTo);
     }
 
     public function createExtension(Request $request): string
@@ -1071,6 +1154,24 @@ final class PbxController extends Controller
         return (int) $this->db()->query('SELECT COUNT(*) FROM ps_endpoints WHERE presence_status IS NOT NULL AND deleted_at IS NULL')->fetchColumn();
     }
 
+    private function amiPanel(): array
+    {
+        $companyId = has_role('super-admin') ? null : (int) Session::get('company_id', 0);
+        $settings = new AmiSettingsService($this->db());
+        $service = new AmiService($this->db(), $settings);
+
+        return [
+            'settings' => $settings->forCompany($companyId),
+            'status' => $service->status($companyId),
+            'user_extension' => $companyId !== null ? $this->userExtension($companyId) : null,
+        ];
+    }
+
+    private function callLogService(): CallLogService
+    {
+        return new CallLogService($this->db());
+    }
+
     private function extensionRows(): array
     {
         $sql =
@@ -1184,6 +1285,31 @@ final class PbxController extends Controller
         }
 
         return $this->db()->query('SELECT id, name FROM companies WHERE deleted_at IS NULL ORDER BY name')->fetchAll();
+    }
+
+    private function userExtension(int $companyId): ?array
+    {
+        if ($companyId <= 0) {
+            return null;
+        }
+
+        $statement = $this->db()->prepare(
+            'SELECT e.id, e.extension_number, e.context
+             FROM ps_endpoints e
+             INNER JOIN users u ON u.company_id = e.company_id
+             WHERE u.id = :user_id
+               AND e.company_id = :company_id
+               AND e.deleted_at IS NULL
+               AND (u.email = e.email OR u.email = e.contact_email)
+             LIMIT 1'
+        );
+        $statement->execute([
+            'user_id' => (int) Session::get('user_id', 0),
+            'company_id' => $companyId,
+        ]);
+        $row = $statement->fetch();
+
+        return is_array($row) ? $row : null;
     }
 
     private function tableRows(string $table): array
@@ -1665,6 +1791,16 @@ final class PbxController extends Controller
     private function yesNo(mixed $value): string
     {
         return in_array((string) $value, ['1', 'yes', 'true', 'on'], true) ? 'yes' : 'no';
+    }
+
+    private function hasPermission(int $userId, string $permission): bool
+    {
+        return has_role('super-admin') || (new PermissionService($this->db()))->userHasPermission($userId, $permission);
+    }
+
+    private function rateLimited(string $key, int $limit, int $windowSeconds): bool
+    {
+        return (new ApiTokenService($this->db()))->hitRateLimit($key, $limit, $windowSeconds);
     }
 
     private function back(string $path, array $errors, array $old): void

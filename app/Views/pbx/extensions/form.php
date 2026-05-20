@@ -9,6 +9,8 @@ $aor = $value('internal_aor_id', $value('aors', $value('id')));
 $email = $value('email', $value('contact_email'));
 $server = preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? env('APP_URL', '')));
 $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'transport-wss' : '');
+$connectionMethod = str_contains($transportValue, 'wss') ? 'WebSocket seguro' : ($transportValue !== '' ? $transportValue : 'UDP');
+$profileName = $value('context', 'contexto_principal');
 ?>
 
 <?php if (! empty($errors['general'])): ?>
@@ -23,9 +25,9 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
 
     <section class="hero-panel">
         <div>
-            <span class="eyebrow">Extension</span>
-            <h2><?= e($mode === 'edit' ? 'Editar extension' : 'Nueva extension') ?></h2>
-            <p>Captura lo esencial. UC200 genera usuario SIP, Auth User, password, AOR, NAT y codecs automaticamente.</p>
+            <span class="eyebrow">UC200 Identity</span>
+            <h2><?= e($mode === 'edit' ? 'Editar identidad de comunicacion' : 'Nueva identidad de comunicacion') ?></h2>
+            <p>Captura lo esencial. UC200 genera automaticamente la identidad interna, metodo de conexion, conectividad remota y calidad de audio recomendada.</p>
         </div>
         <div class="module-meta">
             <a class="button secondary sm" href="/pbx/extensions">Volver</a>
@@ -64,12 +66,20 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
             <label class="field">Caller ID visible
                 <input name="callerid" value="<?= e($value('callerid')) ?>" placeholder="&quot;1001&quot; &lt;1001&gt;">
             </label>
-            <label class="field">Tipo de dispositivo
+            <label class="field">Experiencia principal
                 <select name="device_type" data-device-type>
-                    <?php foreach (['external_softphone' => 'Softphone externo', 'webrtc' => 'WebRTC', 'ip_phone' => 'Telefono IP'] as $key => $label): ?>
+                    <?php foreach ([
+                        'webrtc' => 'UC200 Softphone Web',
+                        'ip_phone' => 'Telefono IP',
+                        'external_softphone' => 'Softphone externo temporal/pruebas',
+                    ] as $key => $label): ?>
                         <option value="<?= e($key) ?>" <?= $value('device_type', 'external_softphone') === $key ? 'selected' : '' ?>><?= e($label) ?></option>
                     <?php endforeach; ?>
                 </select>
+            </label>
+            <label class="field">Perfil de llamadas
+                <input name="context" value="<?= e($profileName) ?>" required>
+                <?php if (! empty($errors['context'])): ?><small class="field-error"><?= e($errors['context']) ?></small><?php endif; ?>
             </label>
             <label class="field">Grabacion habilitada
                 <select name="recording_enabled">
@@ -99,16 +109,22 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
         <section class="module-panel">
             <div class="section-heading">
                 <div>
-                    <span class="eyebrow">Softphone</span>
-                    <h3>Configuracion para Zoiper, Linphone o MicroSIP</h3>
+                    <span class="eyebrow">UC200 Apps</span>
+                    <h3>Cliente principal y opciones de compatibilidad</h3>
                 </div>
-                <button class="button secondary sm" type="button" data-modal-open="softphone-config">Configurar Softphone</button>
+                <div class="softphone-actions">
+                    <a class="button primary sm" href="/softphone">Abrir Web Client</a>
+                    <button class="button secondary sm" type="button">Configurar app movil</button>
+                    <button class="button secondary sm" type="button">Instalar PWA</button>
+                    <button class="button secondary sm" type="button">Descargar app de escritorio</button>
+                    <button class="button secondary sm" type="button" data-modal-open="softphone-config">Softphone externo</button>
+                </div>
             </div>
             <div class="credential-grid">
-                <div class="credential-box"><span>Servidor</span><strong><?= e($server) ?></strong></div>
-                <div class="credential-box"><span>Extension</span><strong><?= e($extensionNumber) ?></strong></div>
-                <div class="credential-box"><span>Auth User</span><strong><?= e($authUser) ?></strong></div>
-                <div class="credential-box"><span>Password</span><input type="password" readonly value="<?= e($authPassword) ?>" data-secret-field></div>
+                <div class="credential-box"><span>Cliente principal</span><strong>UC200 Softphone</strong></div>
+                <div class="credential-box"><span>Identidad</span><strong><?= e($extensionNumber) ?></strong></div>
+                <div class="credential-box"><span>Metodo de conexion</span><strong><?= e($connectionMethod) ?></strong></div>
+                <div class="credential-box"><span>Email</span><strong><?= e($email !== '' ? $email : 'Sin correo') ?></strong></div>
             </div>
         </section>
     <?php endif; ?>
@@ -117,11 +133,11 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
         <summary>
             <span>
                 <strong>Opciones avanzadas</strong>
-                <small>SIP, AOR, NAT, codecs e identificacion segura.</small>
+                <small>Solo superadmin/engineer. Identidad SIP interna, metodo de conexion, conectividad remota y calidad de audio.</small>
             </span>
         </summary>
         <div class="form-grid">
-            <label class="field">SIP Username / Endpoint
+            <label class="field">Identidad SIP interna
                 <input value="<?= e($sipUsername !== '' ? $sipUsername : 'Se genera automaticamente') ?>" readonly>
             </label>
             <label class="field">Auth User
@@ -137,14 +153,10 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
                     <button class="button secondary xs" type="button" data-copy-target="previous">Copiar</button>
                 </div>
             </label>
-            <label class="field">AOR / Endpoint
+            <label class="field">Registro interno
                 <input value="<?= e($aor !== '' ? $aor : 'Se genera automaticamente') ?>" readonly>
             </label>
-            <label class="field">Contexto
-                <input name="context" value="<?= e($value('context', 'contexto_principal')) ?>" required>
-                <?php if (! empty($errors['context'])): ?><small class="field-error"><?= e($errors['context']) ?></small><?php endif; ?>
-            </label>
-            <label class="field">Transport
+            <label class="field">Metodo de conexion
                 <select name="transport" data-transport-select>
                     <option value="">Default UDP</option>
                     <?php foreach ($transports as $transport): ?>
@@ -152,7 +164,7 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
                     <?php endforeach; ?>
                 </select>
             </label>
-            <label class="field">Allow / Codecs
+            <label class="field">Calidad de audio
                 <input name="allow" data-codecs-input value="<?= e($value('allow', $value('device_type') === 'webrtc' ? 'opus,ulaw,alaw' : 'ulaw,alaw')) ?>">
             </label>
             <label class="field">Disallow
@@ -186,7 +198,7 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
                     <?php endforeach; ?>
                 </select>
             </label>
-            <label class="field">Disable direct media on NAT
+            <label class="field">Conectividad remota avanzada
                 <select name="disable_direct_media_on_nat">
                     <?php foreach (['yes' => 'Si', 'no' => 'No'] as $key => $label): ?>
                         <option value="<?= e($key) ?>" <?= $value('disable_direct_media_on_nat', 'yes') === $key ? 'selected' : '' ?>><?= e($label) ?></option>
@@ -224,8 +236,8 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
         <section class="modal-card">
             <div class="section-heading">
                 <div>
-                    <span class="eyebrow">Softphone externo</span>
-                    <h3><?= e($extensionNumber) ?> / <?= e($value('display_name', 'Extension')) ?></h3>
+                    <span class="eyebrow">Compatibilidad</span>
+                    <h3>Softphone externo temporal/pruebas</h3>
                 </div>
                 <button class="icon-button" type="button" data-modal-close>Cerrar</button>
             </div>
@@ -234,11 +246,11 @@ $transportValue = $value('transport', $value('device_type') === 'webrtc' ? 'tran
                 $configRows = [
                     'Servidor' => $server,
                     'Puerto' => str_contains($transportValue, 'wss') ? '8089' : '5060',
-                    'Transporte' => $transportValue !== '' ? $transportValue : 'UDP',
+                    'Metodo de conexion' => $transportValue !== '' ? $transportValue : 'UDP',
                     'Auth User' => $authUser,
                     'Auth Password' => $authPassword,
-                    'Display name' => $value('display_name', $extensionNumber),
-                    'Extension number' => $extensionNumber,
+                    'Nombre visible' => $value('display_name', $extensionNumber),
+                    'Numero de extension' => $extensionNumber,
                     'Email' => $email,
                 ];
                 ?>

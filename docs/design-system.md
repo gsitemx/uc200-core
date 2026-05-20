@@ -9,6 +9,8 @@ UC200 usa un design system compacto orientado a operacion enterprise, inspirado 
 - Tablas densas con filtros inline, acciones `xs` y footer/paginacion visual.
 - Cards sobrias, radio maximo de 8px y sombras discretas.
 - Mobile first en comportamiento, desktop first en densidad.
+- Tokens centralizados para spacing, radios, colores y sombras.
+- Estados activos consistentes para acciones de llamada y presencia.
 
 ## Componentes CSS
 
@@ -20,6 +22,18 @@ UC200 usa un design system compacto orientado a operacion enterprise, inspirado 
 - `field ds-form-group`: grupo de formulario.
 - `alert ds-alert`: mensajes `success` y `error`.
 - `ds-modal`: contenedor base para modales futuros.
+- `call-chip`: resumen visual de llamada activa.
+- `softphone-section`: bloques compactos para transfer, pickup y park.
+
+## UI tokens
+
+En `public/assets/css/app.css`:
+
+- spacing: `--space-1` a `--space-5`
+- radius: `--radius-sm`, `--radius-md`, `--radius-lg`
+- colors: `--primary`, `--success`, `--danger`, `--warning`
+- surfaces: `--bg`, `--surface`, `--surface-2`
+- shadow: `--shadow`
 
 ## Componentes PHP
 

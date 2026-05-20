@@ -6,6 +6,8 @@ namespace App\Core;
 
 final class Request
 {
+    private array $routeParams = [];
+
     public function method(): string
     {
         return strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
@@ -21,7 +23,7 @@ final class Request
     {
         $json = $this->json();
 
-        return $_POST[$key] ?? $_GET[$key] ?? $json[$key] ?? $default;
+        return $_POST[$key] ?? $_GET[$key] ?? $this->routeParams[$key] ?? $json[$key] ?? $default;
     }
 
     public function only(array $keys): array
@@ -92,5 +94,20 @@ final class Request
         $payload = is_array($decoded) ? $decoded : [];
 
         return $payload;
+    }
+
+    public function setRouteParams(array $params): void
+    {
+        $this->routeParams = $params;
+    }
+
+    public function routeParam(string $name, mixed $default = null): mixed
+    {
+        return $this->routeParams[$name] ?? $default;
+    }
+
+    public function routeParams(): array
+    {
+        return $this->routeParams;
     }
 }

@@ -1,8 +1,8 @@
 <section class="hero-panel">
     <div>
-        <span class="eyebrow">Asterisk Realtime</span>
-        <h2>Objetos PJSIP</h2>
-        <p>Vista de verificacion para `ps_endpoints`, `ps_auths` y `ps_aors`. No ejecuta llamadas ni WebRTC.</p>
+        <span class="eyebrow">Modo avanzado</span>
+        <h2>Objetos internos del motor de comunicaciones</h2>
+        <p>Vista tecnica para superadmin/engineer. Muestra identidades internas, autenticacion y registros del motor UC200.</p>
     </div>
 </section>
 
@@ -10,7 +10,7 @@
     <section class="module-panel">
         <div class="section-heading">
             <div>
-                <span class="eyebrow">Realtime</span>
+                <span class="eyebrow">Interno</span>
                 <h3><?= e($label) ?></h3>
             </div>
             <span class="muted"><?= count($rows) ?> registros</span>

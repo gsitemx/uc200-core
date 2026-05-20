@@ -339,7 +339,7 @@ final class CompanyController extends Controller
         $statement->execute(['uuid' => uuid(), 'company_id' => $companyId]);
 
         $roleId = (int) $db->lastInsertId();
-        $permissions = $db->query('SELECT id FROM permissions WHERE slug IN ("core.dashboard.view", "companies.dashboard.view")')->fetchAll();
+        $permissions = $db->query('SELECT id FROM permissions WHERE slug IN ("core.dashboard.view", "companies.dashboard.view", "crm.call", "pbx.originate", "call.hold", "call.transfer", "call.pickup", "call.park", "call.supervise", "security.view", "security.manage")')->fetchAll();
         $assign = $db->prepare('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (:role_id, :permission_id)');
 
         foreach ($permissions as $permission) {

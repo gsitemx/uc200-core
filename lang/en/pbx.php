@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 return [
-    'dashboard_title' => 'Realtime PJSIP',
-    'dashboard_copy' => 'Multi-tenant base for SIP extensions, transports and AOR/Auth/Endpoint objects compatible with Asterisk Realtime.',
-    'extensions_hint' => 'SIP endpoints ready for Realtime',
-    'transports_hint' => 'Configurable UDP/TCP/TLS/WS/WSS',
+    'dashboard_title' => 'UC200 Communications Engine',
+    'dashboard_copy' => 'Multi-tenant base for communication identities, SIP lines and call routing managed by the UC200 communications engine.',
+    'extensions_hint' => 'Communication identities ready for UC200',
+    'transports_hint' => 'Configurable connection methods',
     'recordings_hint' => 'MixMonitor metadata by tenant',
-    'registered_hint' => 'SIP status prepared for future AMI/ARI',
+    'registered_hint' => 'Connection status ready for real time',
     'presence_hint' => 'Structure ready for presence',
-    'sip_status' => 'Prepared SIP status',
-    'identity' => 'SIP identity',
-    'security' => 'Security/NAT',
+    'sip_status' => 'Signaling status ready',
+    'identity' => 'Communication identity',
+    'security' => 'Remote connectivity',
     'recordings_copy' => 'Search, play and download tenant call recordings.',
 ];

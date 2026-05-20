@@ -1,21 +1,27 @@
 <?php if (! empty($flash)): ?>
     <div class="alert success"><?= e($flash) ?></div>
 <?php endif; ?>
+<?php if (! empty($error)): ?>
+    <div class="alert danger"><?= e($error) ?></div>
+<?php endif; ?>
 
 <section class="hero-panel">
     <div>
         <span class="eyebrow">PBX</span>
-        <h2><?= e(__('modules.extensions')) ?></h2>
-        <p>Extensiones visibles para usuarios, con credenciales SIP seguras generadas automaticamente.</p>
+        <h2>Identidades de comunicacion UC200</h2>
+        <p>Las extensiones representan identidades de comunicacion. Los dispositivos y metodos de conexion se gestionan como capas vinculadas, no como la identidad principal.</p>
     </div>
-    <a class="button primary sm" href="/pbx/extensions/create"><?= e(__('actions.new_extension')) ?></a>
+    <div class="module-meta">
+        <span class="badge <?= ($ami['status']['connected'] ?? false) ? 'on' : '' ?>">AMI <?= e(($ami['status']['connected'] ?? false) ? 'connected' : 'offline') ?></span>
+        <a class="button primary sm" href="/pbx/extensions/create"><?= e(__('actions.new_extension')) ?></a>
+    </div>
 </section>
 
 <section class="module-panel">
     <div class="section-heading">
         <div>
             <span class="eyebrow">Directory</span>
-            <h3>Usuarios y dispositivos</h3>
+            <h3>Identidades y experiencias vinculadas</h3>
         </div>
         <div class="table-search"><input data-table-search="#extensions-table" placeholder="Buscar"></div>
     </div>
@@ -40,14 +46,19 @@
                     $server = preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? env('APP_URL', '')));
                     $transport = $extension['transport'] ?: 'UDP';
                     $email = $extension['email'] ?? $extension['contact_email'] ?? '';
+                    $deviceLabel = match ((string) ($extension['device_type'] ?? 'external_softphone')) {
+                        'webrtc' => 'UC200 Softphone',
+                        'ip_phone' => 'Telefono IP',
+                        default => 'Softphone externo temporal/pruebas',
+                    };
                     $configRows = [
                         'Servidor' => $server,
                         'Puerto' => str_contains((string) $transport, 'wss') ? '8089' : '5060',
-                        'Transporte' => $transport,
+                        'Metodo de conexion' => $transport,
                         'Auth User' => $extension['auth_username'] ?? $extension['auth_user'] ?? $extension['username'],
                         'Auth Password' => $extension['auth_password'] ?? $extension['auth_secret'] ?? $extension['password'],
-                        'Display name' => $extension['display_name'] ?? $extension['extension_number'],
-                        'Extension number' => $extension['extension_number'] ?? $extension['username'],
+                        'Nombre visible' => $extension['display_name'] ?? $extension['extension_number'],
+                        'Numero de extension' => $extension['extension_number'] ?? $extension['username'],
                         'Email' => $email,
                     ];
                     ?>
@@ -56,16 +67,26 @@
                             <a class="table-link" href="<?= $editUrl ?>">
                                 <strong><?= e($extension['extension_number'] ?? $extension['username']) ?></strong>
                             </a>
-                            <span><?= e($extension['internal_endpoint_id'] ?? $extension['id']) ?></span>
+                            <span><?= e($extension['display_name'] ?? 'Identidad UC200') ?></span>
                         </td>
                         <td><?= e($extension['display_name'] ?? '') ?><span><?= e($email) ?></span></td>
-                        <td><?= e(str_replace('_', ' ', $extension['device_type'] ?? 'external_softphone')) ?></td>
+                        <td><?= e($deviceLabel) ?></td>
                         <td><?= e($extension['callerid'] ?? '') ?></td>
                         <td><strong><?= e($configRows['Auth User']) ?></strong></td>
                         <td><?= e($extension['company_name']) ?></td>
-                        <td><span class="badge <?= $extension['status'] === 'active' ? 'on' : '' ?>"><?= e($extension['status']) ?></span></td>
+                        <?php $liveStatus = (string) ($extension['presence_status'] ?: ($extension['sip_status'] ?: $extension['status'])); ?>
+                        <td><span class="badge <?= in_array($liveStatus, ['available', 'online', 'registered'], true) ? 'on' : '' ?>" data-realtime-presence data-endpoint-id="<?= e((string) ($extension['internal_endpoint_id'] ?? $extension['id'])) ?>"><?= e($liveStatus) ?></span></td>
                         <td class="actions-cell">
-                            <button class="button secondary xs" type="button" data-modal-open="softphone-<?= e($extension['uuid']) ?>">Configurar</button>
+                            <form method="post" action="/pbx/originate">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="destination" value="<?= e($extension['extension_number'] ?? '') ?>">
+                                <input type="hidden" name="company_id" value="<?= e((string) ($extension['company_id'] ?? '')) ?>">
+                                <input type="hidden" name="redirect_to" value="/pbx/extensions">
+                                <button class="button secondary xs" type="submit">Llamar</button>
+                            </form>
+                            <a class="button primary xs" href="/softphone">Abrir Web Client</a>
+                            <a class="button secondary xs" href="/provisioning/devices/create?company_id=<?= e((string) ($extension['company_id'] ?? '')) ?>&extension_uuid=<?= e((string) ($extension['uuid'] ?? '')) ?>">Asignar telefono</a>
+                            <button class="button secondary xs" type="button" data-modal-open="softphone-<?= e($extension['uuid']) ?>">Softphone externo</button>
                             <a class="button secondary xs" href="<?= $editUrl ?>"><?= e(__('actions.edit')) ?></a>
                             <form method="post" action="/pbx/extensions/regenerate-credentials" onsubmit="return confirm('Regenerar credenciales SIP?');">
                                 <?= csrf_field() ?>
@@ -85,8 +106,8 @@
                                 <section class="modal-card">
                                     <div class="section-heading">
                                         <div>
-                                            <span class="eyebrow">Softphone externo</span>
-                                            <h3><?= e($configRows['Extension number']) ?> / <?= e($configRows['Display name']) ?></h3>
+                                            <span class="eyebrow">Compatibilidad</span>
+                                            <h3>Softphone externo temporal/pruebas</h3>
                                         </div>
                                         <button class="icon-button" type="button" data-modal-close>Cerrar</button>
                                     </div>

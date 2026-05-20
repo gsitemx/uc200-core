@@ -97,6 +97,26 @@ curl https://uc200.example.com/api/v1/extensions?page=1&per_page=25&q=1001 \
 - `GET /api/v1/provisioning/devices`
 - `GET /api/v1/provisioning/templates`
 - `GET /api/v1/provisioning/phonebooks`
+- `GET /api/v1/crm/contacts`
+- `GET /api/v1/crm/contacts/lookup`
+- `POST /api/v1/crm/contacts`
+- `PUT /api/v1/crm/contacts`
+- `DELETE /api/v1/crm/contacts`
+- `GET /api/v1/crm/accounts`
+- `POST /api/v1/crm/accounts`
+- `PUT /api/v1/crm/accounts`
+- `DELETE /api/v1/crm/accounts`
+- `GET /api/v1/crm/activities`
+- `GET /api/v1/crm/calls`
+- `GET /api/v1/pbx/ami/status`
+- `POST /api/v1/pbx/originate`
+- `GET /api/v1/security/fail2ban/status`
+- `GET /api/v1/security/bans`
+- `GET /api/v1/security/events`
+- `POST /api/v1/security/ban`
+- `POST /api/v1/security/unban`
+- `GET /api/v1/realtime/token`
+- `GET /api/v1/realtime/status`
 - `GET /api/v1/queues`
 - `GET /api/v1/queue-agents`
 - `GET /api/v1/queue-events`
@@ -107,9 +127,14 @@ curl https://uc200.example.com/api/v1/extensions?page=1&per_page=25&q=1001 \
 - `GET /api/v1/billing/usage`
 - `POST /api/v1/billing/webhook`
 - `GET /api/v1/webrtc/bootstrap`
+- `GET /api/v1/webrtc/config`
+- `GET /api/v1/webrtc/token`
+- `GET /api/v1/webrtc/status`
 - `POST /api/v1/webrtc/preferences`
 - `POST /api/v1/webrtc/presence`
 - `POST /api/v1/webrtc/events`
+
+`/api/v1/realtime/token` emite un JWT corto para Socket.IO bajo sesion UC200. `realtime/status` devuelve la configuracion activa y un health check ligero hacia el servicio Node interno.
 
 ## Scopes iniciales
 
@@ -126,6 +151,18 @@ curl https://uc200.example.com/api/v1/extensions?page=1&per_page=25&q=1001 \
 - `provisioning_devices:read`
 - `provisioning_templates:read`
 - `provisioning_phonebooks:read`
+- `crm_contacts:read`
+- `crm_contacts:write`
+- `crm_accounts:read`
+- `crm_accounts:write`
+- `crm_activities:read`
+- `crm_calls:read`
+- `pbx_ami:read`
+- `pbx_originate:write`
+- `security_fail2ban:read`
+- `security_bans:read`
+- `security_events:read`
+- `security_bans:write`
 - `queues:read`
 - `queue_agents:read`
 - `queue_events:read`
@@ -153,4 +190,16 @@ La UI expone el archivo en:
 
 ```bash
 mysql -u uc200_user -p uc200_core < database/updates/2026_05_18_api_core.sql
+```
+
+Para AMI Gateway base:
+
+```bash
+mysql -u uc200_user -p uc200_core < database/updates/2026_05_15_ami_gateway.sql
+```
+
+Para Security Center:
+
+```bash
+mysql -u uc200_user -p uc200_core < database/updates/2026_05_19_security_fail2ban_center.sql
 ```

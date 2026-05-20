@@ -1,14 +1,14 @@
 # WebRTC + Web Softphone
 
-UC200 incluye una primera plataforma WebRTC enterprise para operar un softphone web sobre Asterisk/PJSIP Realtime.
+UC200 incluye una plataforma WebRTC enterprise para operar el cliente web integrado del producto. En esta fase ya queda conectada con CRM, automatizacion de llamadas y dashboard de comunicaciones para dar una experiencia moderna tipo UCaaS desde navegador.
 
 ## Arquitectura
 
 ```mermaid
 flowchart LR
-    Browser["Browser Softphone (SIP.js)"] -->|"WSS / SIP"| Asterisk["Asterisk HTTP WebSocket"]
-    Browser -->|"DTLS-SRTP / ICE"| RTP["Asterisk RTP"]
-    UC200["UC200 Core"] -->|"Realtime DB"| Asterisk
+    Browser["UC200 Web Client"] -->|"WSS / SIP"| Engine["UC200 Communications Engine"]
+    Browser -->|"DTLS-SRTP / ICE"| Media["Media Engine"]
+    UC200["UC200 Platform"] -->|"Realtime DB"| Engine
     UC200 -->|"Session token / events"| Browser
 ```
 
@@ -24,21 +24,31 @@ flowchart LR
   - `rtcp_mux`
 - Preferencias de usuario en `webphone_user_preferences`.
 - Configuracion tenant/global en `webphone_settings`.
+  - `enable_webrtc`
+  - `websocket_port`
+  - `websocket_path`
+  - `stun_server`
+  - `turn_server`
+  - `dtls_enabled`
+  - `ice_enabled`
 - Presencia en `pbx_presence_states`.
 - Eventos y sincronizacion en `webphone_call_events`.
 - Historial softphone en `webphone_recent_calls`.
 - Token efimero en `webrtc_session_tokens`.
 - Rate limit reutilizando `api_rate_limits` para bootstrap y eventos WebRTC.
+- Runtime service en `SoftphoneService` y generador de credenciales SIP en `SipCredentialGenerator`.
 
 ## Flujo
 
 1. Usuario abre `/softphone`.
-2. UC200 entrega bootstrap con extension, auth SIP, WSS URL, STUN/TURN y token temporal.
-3. SIP.js registra por `wss://host:8089/ws`.
+2. UC200 entrega config runtime con extension, auth SIP, ruta WSS, STUN/TURN y token temporal.
+3. El frontend construye por defecto `wss://{dominio_actual}/ws`.
 4. Llamadas usan DTLS/SRTP e ICE.
 5. El navegador reporta eventos a `/api/v1/webrtc/events`.
-6. UC200 guarda recientes, presencia y preferencias.
-7. La presencia se sincroniza como `available`, `ringing`, `busy` u `offline` segun el ciclo de llamada.
+6. UC200 resuelve caller ID contra CRM y muestra nombre, empresa e historial reciente.
+7. UC200 guarda recientes, presencia y preferencias.
+8. La presencia se sincroniza como `available`, `ringing`, `busy` u `offline` segun el ciclo de llamada.
+9. El motor realtime de UC200 publica eventos via Socket.IO para presencia, popup de llamada y KPIs live sin refresh.
 
 ## Softphone Web
 
@@ -51,8 +61,22 @@ El softphone usa SIP.js y queda integrado en `/softphone` con:
 - Constraints de audio con echo cancellation, noise suppression y auto gain control.
 - Notificaciones del navegador para llamadas entrantes.
 - Preparacion BLF/presencia con estados live por endpoint.
+- Caller ID inteligente con lookup en CRM por movil, oficina o DID.
+- Contexto visual de contacto con empresa y ultimas interacciones.
+- Click-to-call via PBX/AMI cuando el usuario prefiere originar desde su extension.
 
 Los navegadores requieren HTTPS valido para microfono, notificaciones y WSS.
+
+## Endpoints API
+
+- `GET /api/v1/webrtc/config`
+- `GET /api/v1/webrtc/token`
+- `GET /api/v1/webrtc/status`
+- `POST /api/v1/webrtc/preferences`
+- `POST /api/v1/webrtc/presence`
+- `POST /api/v1/webrtc/events`
+
+`/api/v1/webrtc/config` y `/token` requieren sesion UC200. El frontend no incrusta credenciales SIP en el HTML; las obtiene bajo sesion y con token temporal corto para eventos y estado. Esto no elimina por completo la necesidad de credenciales SIP en navegador, pero evita exponerlas en plantillas o almacenarlas de forma persistente.
 
 ## Puertos firewall
 
@@ -60,15 +84,14 @@ Minimo recomendado:
 
 ```bash
 iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-iptables -A INPUT -p tcp --dport 8089 -j ACCEPT
 iptables -A INPUT -p udp --dport 10000:20000 -j ACCEPT
 iptables -A INPUT -p udp --dport 3478 -j ACCEPT
 iptables -A INPUT -p tcp --dport 5349 -j ACCEPT
 ```
 
-Usa `443` para la app HTTPS, `8089/tcp` para Asterisk WSS, `10000:20000/udp` para RTP y `3478/5349` si despliegas TURN.
+Usa `443` para la app HTTPS, `10000:20000/udp` para RTP y `3478/5349` si despliegas TURN. El WebSocket SIP debe entrar por el mismo dominio del panel y pasar por proxy reverse hacia `127.0.0.1:8088/ws`, sin exponer Asterisk HTTP publicamente.
 
-## Asterisk
+## Motor interno
 
 Ejemplo base:
 
@@ -91,7 +114,40 @@ icesupport=yes
 stunaddr=stun.l.google.com:19302
 ```
 
-El transporte realtime `transport-wss` queda creado por la migracion. Para cada extension, usa `Enable WebRTC` en `/softphone`.
+El transporte realtime `transport-wss` queda creado por la migracion. Para cada extension, usa `Enable WebRTC` en `/softphone`. El modo recomendado es **WebRTC integrado**, donde el navegador usa `wss://{dominio_actual}/ws` y Apache/Nginx reenvia a `127.0.0.1:8088/ws`. El panel PBX permite ajustar:
+
+- `Enable WebRTC`
+- `WebSocket path`
+- `WebSocket port` en opciones avanzadas
+- `WebSocket URL override` en opciones avanzadas
+- `STUN server`
+- `TURN server`
+- `DTLS enable`
+- `ICE support`
+- `Session timeout`
+
+## Proxy recomendado
+
+Apache:
+
+```apache
+ProxyPass "/ws" "ws://127.0.0.1:8088/ws"
+ProxyPassReverse "/ws" "ws://127.0.0.1:8088/ws"
+```
+
+Nginx:
+
+```nginx
+location /ws {
+    proxy_pass http://127.0.0.1:8088/ws;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $host;
+}
+```
+
+La idea es que el WebSocket interno quede escuchando solo en localhost o red interna, mientras el panel publica un unico endpoint seguro `wss://{dominio_actual}/ws`.
 
 ## STUN/TURN
 
@@ -132,7 +188,7 @@ Guarda las URLs en `webphone_settings.turn_urls` como JSON:
 ## Instalacion
 
 ```bash
-mysql -u uc200_user -p uc200_core < database/updates/2026_05_18_webrtc_softphone.sql
+mysql -u uc200_user -p uc200_core < database/updates/2026_05_15_webrtc_softphone.sql
 asterisk -rx "pjsip reload"
 asterisk -rx "module reload res_http_websocket.so"
 ```

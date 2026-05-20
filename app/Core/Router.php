@@ -13,6 +13,7 @@ use App\Middleware\TenantMiddleware;
 final class Router
 {
     private array $routes = [];
+    private array $patterns = [];
 
     public function get(string $path, array|callable $handler, array $middleware = []): void
     {
@@ -36,10 +37,18 @@ final class Router
 
     private function add(string $method, string $path, array|callable $handler, array $middleware = []): void
     {
-        $this->routes[$method][$this->normalize($path)] = [
+        $normalized = $this->normalize($path);
+        $route = [
             'handler' => $handler,
             'middleware' => $middleware,
         ];
+
+        if (str_contains($normalized, '{')) {
+            $this->patterns[$method][] = $route + $this->compilePattern($normalized);
+            return;
+        }
+
+        $this->routes[$method][$normalized] = $route;
     }
 
     public function dispatch(Request $request, Config $config): Response
@@ -47,6 +56,25 @@ final class Router
         $method = $request->method();
         $path = $this->normalize($request->path());
         $route = $this->routes[$method][$path] ?? null;
+
+        if ($route === null && isset($this->patterns[$method])) {
+            foreach ($this->patterns[$method] as $candidate) {
+                if (! preg_match($candidate['regex'], $path, $matches)) {
+                    continue;
+                }
+
+                $params = [];
+                foreach ($candidate['params'] as $param) {
+                    if (isset($matches[$param])) {
+                        $params[$param] = $matches[$param];
+                    }
+                }
+
+                $request->setRouteParams($params);
+                $route = $candidate;
+                break;
+            }
+        }
 
         if ($route === null) {
             if (str_starts_with($path, '/api/')) {
@@ -113,5 +141,27 @@ final class Router
     {
         $path = '/' . trim($path, '/');
         return $path === '/' ? '/' : rtrim($path, '/');
+    }
+
+    private function compilePattern(string $path): array
+    {
+        $params = [];
+        $segments = explode('/', trim($path, '/'));
+        $parts = [];
+
+        foreach ($segments as $segment) {
+            if (preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $segment, $matches) === 1) {
+                $params[] = $matches[1];
+                $parts[] = '(?P<' . $matches[1] . '>[^/]+)';
+                continue;
+            }
+
+            $parts[] = preg_quote($segment, '#');
+        }
+
+        return [
+            'regex' => '#^/' . implode('/', $parts) . '$#',
+            'params' => $params,
+        ];
     }
 }

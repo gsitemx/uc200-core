@@ -1,6 +1,88 @@
-# PBX Core
+# UC200 Communications
 
-Modulo base para preparar integracion Asterisk Realtime con PJSIP.
+Guia de la capa de comunicaciones de UC200. La experiencia visible se centra en identidades de comunicacion, perfiles de llamadas, clientes UC200 y lineas SIP. El detalle tecnico del motor interno se conserva solo para superadmin/engineer.
+
+## Conceptos para usuario final
+
+- **Identidad de comunicacion**: representa la extension UC200 de una persona o equipo.
+- **Perfil de llamadas**: define como se enrutan sus llamadas internas, externas o de grupos.
+- **Metodo de conexion**: forma tecnica de enlazar clientes o telefonos, gestionada automaticamente por UC200.
+- **UC200 Softphone**: experiencia principal de llamadas desde navegador.
+- **Softphone externo temporal/pruebas**: opcion de compatibilidad avanzada para validaciones o migraciones.
+- **Linea SIP / Proveedor SIP**: conexion con operador o servicio externo.
+- **Conectividad remota**: ajustes para usuarios y dispositivos fuera de la red local.
+
+## Conceptos tecnicos internos
+
+Las secciones siguientes ya pueden mencionar el motor interno, tablas realtime y objetos SIP. Esta parte esta pensada para implementacion, soporte y troubleshooting tecnico.
+
+## CRM + PBX
+
+UC200 ya incluye una primera capa de integracion CRM/PBX:
+
+- contacto vinculado a extension, DID o telefono
+- caller ID lookup por movil, oficina o DID
+- historial `crm_call_logs`
+- dashboard PBX con llamadas hoy, perdidas y agentes online
+- abstraccion de originate conectada a AMI Gateway base
+
+La base actual resuelve `Originate` real por AMI cuando el gateway esta habilitado. ARI y el listener de eventos quedan preparados para una fase posterior con worker dedicado.
+
+## Security Center
+
+UC200 ahora agrega una primera capa operativa de seguridad PBX/SIP desde el panel:
+
+- dashboard de ataques SIP
+- lectura de `fail2ban`
+- IPs bloqueadas
+- firewall `iptables`
+- whitelist / blacklist
+- auditoria de bans manuales y reinicios
+
+La documentacion detallada vive en `docs/security.md` y `docs/pbx-security.md`.
+
+## AMI Gateway
+
+UC200 agrega una capa inicial AMI para controlar llamadas desde:
+
+- panel PBX
+- contactos CRM
+- softphone web
+
+Configuracion disponible en la UI PBX:
+
+- host
+- port
+- username
+- password
+- enabled
+- status
+
+Valores recomendados por defecto:
+
+```text
+Host: 127.0.0.1
+Port: 5038
+Enabled: no
+Originate context: usar contexto de la extension
+```
+
+Las credenciales se guardan cifradas en `settings` usando `APP_KEY` cuando esta disponible. Si `APP_KEY` no existe, UC200 usa una derivacion local como fallback y recomienda configurar una llave propia.
+
+### Flujo de click-to-call
+
+1. El usuario elige un contacto o extension destino.
+2. UC200 obtiene la extension del usuario logueado.
+3. `PbxOriginateService` llama a `AmiService`.
+4. Asterisk origina a `PJSIP/{endpoint}`.
+5. Cuando el usuario contesta, el canal entra al contexto configurado y marca el destino.
+
+Por defecto UC200 usa:
+
+- `pbx.ami.originate_context` si esta configurado.
+- Si no existe, usa el `context` de la extension origen.
+
+Esto mantiene compatibilidad con el dialplan realtime actual y evita romper extensiones existentes.
 
 ## Alcance
 
@@ -14,9 +96,24 @@ Modulo base para preparar integracion Asterisk Realtime con PJSIP.
 - Password SIP generado con `random_bytes()`.
 - Auth User separado del numero visible, estilo 3CX.
 
-No implementa AMI/ARI, WebRTC ni presencia en tiempo real. Incluye una plantilla inicial de dialplan para llamadas internas entre extensiones del mismo tenant.
+Incluye AMI Gateway base, WebRTC browser softphone con WSS/DTLS/ICE, listener realtime enterprise por Socket.IO y una plantilla inicial de dialplan para llamadas internas entre extensiones del mismo tenant. ARI queda preparado para una fase posterior.
 
-## Tablas
+## WebRTC en PBX
+
+El dashboard PBX ya incluye una seccion `WebRTC Gateway` para controlar:
+
+- `Enable WebRTC`
+- `SIP domain`
+- `WebSocket path`
+- `STUN server`
+- `TURN server`
+- `DTLS enable`
+- `ICE support`
+- `Session timeout`
+
+Por defecto UC200 opera en modo **WebRTC integrado** y el softphone construye `wss://{dominio_actual}/ws`. El puerto y un override WSS absoluto siguen disponibles solo en opciones avanzadas para administradores. Con esto UC200 puede preparar endpoints WebRTC sin tocar el resto del realtime PJSIP existente.
+
+## Tablas internas
 
 - `ps_endpoints`
 - `ps_auths`
@@ -203,8 +300,8 @@ En el listado o detalle de extension usa **Configurar Softphone**. El modal mues
 
 ```text
 Servidor: dominio o IP del PBX
-Puerto: 5060 para UDP/TCP/TLS, 8089 para WSS
-Transporte: UDP o transport-wss
+Puerto: 5060 para UDP/TCP/TLS
+Transporte: UDP o TLS para softphone externo; WebRTC integrado usa /ws en el mismo dominio del panel
 Auth User: usuario aleatorio seguro
 Auth Password: password aleatorio seguro
 Display name: nombre visible
